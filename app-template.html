@@ -202,6 +202,10 @@ textarea{width:100%;min-height:130px;background:var(--card);color:var(--fg);bord
 .note-box{margin:0 0 14px;padding:10px 12px;background:rgba(110,168,254,.08);
   border:1px solid rgba(110,168,254,.25);border-radius:10px;font-size:13px;line-height:1.6}
 .note-box .nt{display:block;font-size:10px;color:var(--blue);margin-bottom:4px;letter-spacing:1px}
+.note-box.ref-box{background:rgba(126,203,161,.08);border-color:rgba(126,203,161,.25)}
+.note-box.ref-box .nt{color:var(--green,#7ecba1)}
+.ref-pos{display:inline-block;font-size:10px;color:var(--dim2);border:1px solid var(--line);
+  border-radius:4px;padding:0 4px;margin-right:6px}
 .note-edit textarea{width:100%;min-height:76px;padding:10px 12px;background:var(--card2);
   border:1px solid var(--line);border-radius:9px;color:var(--fg);font-size:13px;
   font-family:inherit;line-height:1.5;resize:vertical}
@@ -454,7 +458,7 @@ var feedback = null;   // 输入模式判分后的反馈
 function makeCard(w){
   var c = FSRS.newCard();
   c.w=w.w; c.p=w.p||''; c.m=w.m||''; c.ex=w.ex||'';
-  c.tip=w.tip||''; c.lxyEx=w.ex||null;
+  c.tip=w.tip||''; c.lxyEx=w.ex||null; c.ref=w.ref||null;
   c.enabled=true; c.addedAt=Date.now(); c.note='';
   return c;
 }
@@ -470,8 +474,8 @@ function buildSession(){
 
   var log = todayLog();
   var need = Math.max(0, state.settings.dailyNew - (log.intro||0));
+  // 词书已按常用度排序（COCA 词频升序），新词照此顺序引入，先学高频词。
   var fresh = pool().filter(function(p){ return !state.cards[cardKey(p.w)]; });
-  shuffle(fresh);
   var news = [];
   for(var i=0;i<need && i<fresh.length;i++){
     var c = makeCard(fresh[i]);
@@ -668,6 +672,7 @@ function stage(){
            ? '<div class="line"><span class="k">命中</span><span class="v">'+esc(feedback.matched)+'</span></div>' : '')
         + '</div>'
         + renderExamples(c.w)
+        + renderRef(c)
         + (c.tip ? '<div class="note-box"><span class="nt">书中助记</span>'+esc(c.tip)+'</div>' : '')
         + (c.note ? '<div class="note-box"><span class="nt">我的助记</span>'+esc(c.note)+'</div>' : '')
         + '<div class="verdict '+(v==='chosen'?['','wrong','near','right'][feedback.g]:v)+'">'+vtext+'</div>'
@@ -676,6 +681,15 @@ function stage(){
         + (v==='right' || v==='chosen' ? '' : '<button class="btn-alt" data-action="forceGood">算认识</button>')
         + '</div>';
   el.innerHTML = html + '</div>';
+}
+// 牛津高阶参考释义（精简词条，繁体原文已转简体；不覆盖主释义）
+var POS_CN = {noun:'n.',verb:'v.',adjective:'adj.',adverb:'ad.',exclamation:'int.',
+              article:'art.',preposition:'prep.',conjunction:'conj.',pronoun:'pron.'};
+function renderRef(c){
+  var r = c && c.ref;
+  if(!r || !r.m) return '';
+  return '<div class="note-box ref-box"><span class="nt">牛津高阶参考</span>'
+       + '<span class="ref-pos">'+(POS_CN[r.pos]||r.pos||'')+'</span>'+esc(r.m)+'</div>';
 }
 // 例句（揭晓后显示，点英文可朗读）：词书自带真题例句优先，否则用通用例句库
 function renderExamples(word){
@@ -1137,6 +1151,7 @@ function openWordInfo(){
     + '</div>'
     + '<div class="note" style="text-align:center;margin:0 0 14px">下次复习：'+dueText+'</div>'
     + (c.tip ? '<div class="note-box"><span class="nt">书中助记</span>'+esc(c.tip)+'</div>' : '')
+    + renderRef(c)
     + '<div class="note-edit"><div class="label" style="font-size:12px;margin-bottom:6px">我的助记</div>'
     + '<textarea id="noteInput" placeholder="写点只属于你的记忆线索，比如词根、谐音、画面…">'+esc(c.note||'')+'</textarea>'
     + '<button class="btn" data-action="saveNote" style="margin:8px 0 14px">保存助记</button></div>'

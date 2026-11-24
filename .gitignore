@@ -1,8 +1,12 @@
 node_modules/
 .edge-*/
-raw/
+raw/*
+!raw/official-cet4.txt
+!raw/official-cet6.txt
 examples/
 cet4-raw.txt
 shot*.mjs
 test-type.mjs
 *.log
+trace-meaning.json
+analyze-sense.js

@@ -34,8 +34,8 @@ try{
     word: document.querySelector('.word')?.textContent
   })`);
   ck('加载状态 books=true',s.status.books,s.status);
-  ck('词书 24 本',s.books===24,s.books);
-  ck('词池 22013 词',s.pool===22013,s.pool);
+  ck('词书 26 本',s.books===26,s.books);
+  ck('词池 21819 词',s.pool===21819,s.pool);
   ck('分类 6 类',s.cats===6,s.cats);
   ck('例句接口就绪',s.examples,s.examples);
   ck('启动遮罩已隐藏',s.bootHidden,s.bootHidden);
@@ -67,8 +67,8 @@ try{
     bootHidden:document.getElementById('boot').classList.contains('hidden')
   })`);
   ck('离线状态来自缓存',off.status.source==='本地缓存',off.status);
-  ck('离线词书 24 本',off.books===24,off.books);
-  ck('离线词池完整',off.pool===22013,off.pool);
+  ck('离线词书 26 本',off.books===26,off.books);
+  ck('离线词池完整',off.pool===21819,off.pool);
   ck('离线可出词',!!off.word,off.word);
   ck('离线遮罩隐藏',off.bootHidden,off.bootHidden);
   await cmd('Network.setBlockedURLs',{urls:[]});
@@ -80,7 +80,7 @@ try{
   await cmd('Page.reload');
   await sleep(3500);
   let fb=await ev(`({status:window.__memoDataStatus,books:(window.WORD_BOOKS||[]).length})`);
-  ck('坏源后仍加载到词书',fb.books===24,fb);
+  ck('坏源后仍加载到词书',fb.books===26,fb);
 
   console.log('\n────────────────────────');
   console.log(`通过 ${pass} / 失败 ${fail}`);
