@@ -1,0 +1,8 @@
+node_modules/
+.edge-*/
+raw/
+examples/
+cet4-raw.txt
+shot*.mjs
+test-type.mjs
+*.log
