@@ -46,7 +46,14 @@ node build-app.js
 - `loader.js` — 词库加载器（多源切换、IndexedDB 缓存、离线回退）
 - `fsrs.js` — FSRS-5 调度实现
 - `words.js` / `books.js` / `examples.js` — 词表、词书分类、例句数据
+- `liuxiaoyan.js` / `build-liuxiaoyan.js` — 刘晓艳四级核心词的解析结果和生成脚本
 - `test-*.mjs` — 端到端测试（Edge 无头浏览器 + CDP）
+
+## 刘晓艳四级核心词
+
+「大学 → 四级 → 刘晓艳四级核心词」收录《英语四级·你还在背单词吗》的 2327 个核心词条，按原书课次顺序排列。词条自带书中助记（2005 条）和真题例句（2327 条），揭晓后直接显示在卡片上；也可以在单词档案里查看。
+
+这部分数据来自公开开源项目 `Owenwoow/cet4-vocab-courseware` 整理的 JSON，例句为该项目 AI 生成的书外补充。原始素材已下载到 `raw/liuxiaoyan/`，由 `build-liuxiaoyan.js` 转换后并入词池。
 
 ## 说明
 

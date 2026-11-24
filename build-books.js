@@ -82,16 +82,21 @@ function parseCoca(){
 }
 
 // ── 建词条池 ─────────────────────────────────────────────
-const POOL = new Map(); // w -> {w,p,m,f}
+const POOL = new Map(); // w -> {w,p,m,f,tip,ex}
 function put(e){
   const k = e.w.toLowerCase();
   const cur = POOL.get(k);
   const f = cocaRank.has(k) ? cocaRank.get(k) : 99999;
   if (!cur){
-    POOL.set(k, { w:k, p:e.p||'', m:e.m||'', f });
+    const o = { w:k, p:e.p||'', m:e.m||'', f };
+    if(e.tip) o.tip = e.tip;
+    if(e.ex) o.ex = e.ex;
+    POOL.set(k, o);
   } else {
     if (!cur.p && e.p) cur.p = e.p;
     if ((!cur.m || cur.m.length < (e.m||'').length)) cur.m = e.m || cur.m;
+    if (e.tip && !cur.tip) cur.tip = e.tip;
+    if (e.ex && !cur.ex) cur.ex = e.ex;
     if (f < cur.f) cur.f = f;
   }
   return k;
@@ -105,6 +110,7 @@ const BOOK_DEFS = [
   { id:'cet4core',  cat:'大学', group:'四级', name:'四级核心1500词',  desc:'按使用频率精选，优先掌握高频词', from:'cet4', n:1500, mode:'freq' },
   { id:'cet4high',  cat:'大学', group:'四级', name:'四级高频700词',   desc:'真题高频词，短期提分首选', from:'cet4', n:700, mode:'freq' },
   { id:'cet4urgent',cat:'大学', group:'四级', name:'四级应急500词',   desc:'考前冲刺，只背最常考的', from:'cet4', n:500, mode:'freq' },
+  { id:'lxy4',      cat:'大学', group:'四级', name:'刘晓艳四级核心词', desc:'《你还在背单词吗》核心词条，含书中助记与真题例句', src:'liuxiaoyan', mode:'orig' },
   // 大学 · 六级
   { id:'cet6',      cat:'大学', group:'六级', name:'六级大全',        desc:'六级考纲词汇，全面覆盖', file:'CET6_edited.txt', mode:'alpha' },
   { id:'cet6core',  cat:'大学', group:'六级', name:'六级核心1500词',  desc:'按频率精选六级核心词', from:'cet6', n:1500, mode:'freq' },
@@ -148,6 +154,18 @@ for (const d of BOOK_DEFS){
 }
 // COCA 整库
 byId.coca = cocaWords.map(put);
+// 刘晓艳四级核心词：按原书顺序，词条自带助记与例句
+{
+  global.window = {};
+  eval(fs.readFileSync('liuxiaoyan.js','utf8'));
+  const keys = [];
+  for(const e of global.window.LXY_WORDS){
+    if(!e.m) continue;
+    keys.push(put(e));
+  }
+  byId.lxy4 = keys;
+  console.log('刘晓艳四级核心词: '+keys.length+' 词');
+}
 // bare 型：用已入池的词回填释义
 for (const d of BOOK_DEFS){
   if (!d.bare) continue;
