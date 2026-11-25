@@ -121,6 +121,8 @@ try {
   const spellWord = await ev(`document.querySelector('.word').textContent`);
   await click('[data-action="setInputMode"][data-mode="en"]');
   ck('切到拼写模式后提示变化', (await ev(`document.getElementById('typeInput').placeholder`)) === '输入英文拼写');
+  ck('拼英文时不再摆着英文答案', !(await ev(`!!document.querySelector('.word')`)));
+  ck('拼英文时给出中文提示', !!(await ev(`(document.querySelector('.spell-prompt')||{}).textContent`)));
   await ev(`(()=>{var i=document.getElementById('typeInput');i.value=${JSON.stringify(spellWord)};
     i.dispatchEvent(new Event('input',{bubbles:true}));document.querySelector('[data-action="submitInput"]').click();})()`);
   await sleep(250);

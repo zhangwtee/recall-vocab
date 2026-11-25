@@ -118,6 +118,13 @@ try {
   await click('[data-action="confirm"]');
   ck('重新打开后出词继续朗读', (await ev(`window.__speakLog.length`)) === 3);
 
+  // 拼英文模式：题目换成中文，不再显示英文或朗读答案
+  await click('[data-action="setInputMode"][data-mode="en"]');
+  ck('拼英文时题目不显示英文单词', !(await ev(`!!document.querySelector('.word')`)));
+  ck('拼英文时显示中文提示', !!(await ev(`(document.querySelector('.spell-prompt')||{}).textContent`)));
+  ck('拼英文时不朗读答案', (await ev(`window.__speakLog.length`)) === 3);
+  await click('[data-action="setInputMode"][data-mode="cn"]');
+
   // 自动朗读失败时静默；手动点喇叭才提示
   await ev(`sessionStorage.setItem('__failSpeech','1'); window.__toastLog.length=0`);
   await ev(`localStorage.setItem('nixiang.memo.v1', JSON.stringify((function(){

@@ -90,6 +90,9 @@ main{flex:1;min-height:0;display:flex;flex-direction:column;padding:12px 16px;
 .word{font-size:clamp(38px,10vw,60px);font-weight:650;letter-spacing:-1px;line-height:1.15;
   text-align:center;word-break:break-word;margin-bottom:10px;cursor:pointer}
 .word:hover{color:var(--blue)}
+.spell-sub{font-size:12px;color:var(--dim2);text-align:center;margin-bottom:8px;letter-spacing:1px}
+.spell-prompt{font-size:clamp(22px,5.6vw,32px);font-weight:650;line-height:1.5;
+  text-align:center;word-break:break-word;margin-bottom:10px}
 .phonetic{display:flex;align-items:center;gap:10px;color:var(--dim);font-size:16px;min-height:26px}
 .speak{border:0;background:var(--card2);color:var(--blue);width:36px;height:36px;border-radius:50%;
   font-size:16px;cursor:pointer;display:grid;place-items:center;flex:none}
@@ -732,6 +735,7 @@ function speak(text, quiet){
 // 新词出现就读一遍；同一张卡重复渲染（揭晓、撤销）不再读。
 function speakOnShow(force){
   if(!state.settings.autoSpeakShow || !current) return;
+  if(inputMode==='en' && !feedback) return;   // 拼英文时读出来等于报答案
   var k = cardKey(current.w);
   if(autoSpokenKey === k && !force) return;
   autoSpokenKey = k;
@@ -864,6 +868,7 @@ function setInputMode(mode){
   var inp = document.getElementById('typeInput');
   if(inp){ inp.placeholder = mode==='en' ? '输入英文拼写' : '输入汉语意思'; inp.focus(); }
   updateActionArea();
+  stage();   // 拼英文时卡片换成中文提示，不能把答案摆在题目上
 }
 function esc(s){
   return String(s==null?'':s).replace(/[&<>"']/g,function(c){
@@ -887,15 +892,19 @@ function stage(){
   }
   var c = current;
   var ph = (state.settings.hidePh && !feedback) ? '' : c.p;
-  var html = '<div class="card">'
-    + '<div class="word" data-action="wordInfo" title="查看记忆档案">'+esc(c.w)+'</div>'
-    + '<div class="phonetic">'+(ph?'<span>'+esc(ph)+'</span>':'<span></span>')
-    + '<button class="speak" data-action="speak" title="朗读">🔊</button></div>'
-    + '<div class="divider"></div>';
+  var spelling = (inputMode==='en' && !feedback);
+  var head = spelling
+    ? '<div class="spell-sub">看中文，拼出英文</div>'
+      + '<div class="spell-prompt">'+esc(meaningItems(c.m).join(' / '))+'</div>'
+    : '<div class="word" data-action="wordInfo" title="查看记忆档案">'+esc(c.w)+'</div>'
+      + '<div class="phonetic">'+(ph?'<span>'+esc(ph)+'</span>':'<span></span>')
+      + '<button class="speak" data-action="speak" title="朗读">🔊</button></div>';
+  var html = '<div class="card">' + head + '<div class="divider"></div>';
 
   if(!feedback){
     // 出词：写了就提交判分，没写就直接选档位
-    html += '<div class="hint">写出意思自动判<br>或者直接选下面的档位</div>'
+    html += '<div class="hint">'+(spelling ? '根据上面的中文写出英文拼写<br>或者直接选下面的档位'
+                                          : '写出意思自动判<br>或者直接选下面的档位')+'</div>'
           + '<div class="mode-switch">'
           + '<button data-action="setInputMode" data-mode="cn" class="'+(inputMode==='cn'?'on':'')+'">写中文</button>'
           + '<button data-action="setInputMode" data-mode="en" class="'+(inputMode==='en'?'on':'')+'">拼英文</button>'
