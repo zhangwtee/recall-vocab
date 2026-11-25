@@ -63,6 +63,10 @@ header{flex:none;display:flex;align-items:center;gap:12px;padding:16px 20px 8px}
 .plan-stat div{text-align:center}
 .plan-stat .n{font-size:20px;font-weight:650}
 .plan-stat .t{font-size:11px;color:var(--dim2);margin-top:2px}
+.plan-extra{display:flex;gap:8px;margin-top:12px}
+.plan-extra button{flex:1;padding:10px 4px;background:var(--card);border:1px solid var(--line);
+  border-radius:9px;color:var(--dim);font-size:12px;cursor:pointer;white-space:nowrap}
+.plan-extra button:active{background:var(--card2)}
 .plan-save{width:100%;padding:12px;background:var(--blue);border:0;border-radius:9px;
   color:#fff;font-size:14px;font-weight:600;cursor:pointer;margin-top:4px}
 .spacer{flex:1}
@@ -122,6 +126,10 @@ main{flex:1;min-height:0;display:flex;flex-direction:column;padding:12px 16px;
 .rate[data-g="1"] b{color:var(--red)}
 .rate[data-g="2"] b{color:var(--yellow)}
 .rate[data-g="3"] b{color:var(--green)}
+.mode-switch{display:flex;gap:6px;margin-bottom:12px}
+.mode-switch button{flex:1;padding:7px;border:1px solid var(--line);border-radius:8px;
+  background:transparent;color:var(--dim2);font-size:12px;cursor:pointer}
+.mode-switch button.on{background:var(--card2);color:var(--blue);border-color:var(--blue)}
 .typebox{width:100%}
 .type-input{width:100%;padding:15px 12px;background:var(--card2);border:1px solid var(--line);
   border-radius:12px;color:var(--fg);font-size:17px;text-align:center;outline:none;
@@ -148,16 +156,19 @@ main{flex:1;min-height:0;display:flex;flex-direction:column;padding:12px 16px;
 .fbops{width:100%;display:flex;align-items:stretch}
 #dock{flex:none;width:100%;max-width:680px;margin:0 auto;padding:6px 16px 8px;display:none}
 #dock.show{display:block}
-.fbops .btn-main,.fbops .btn-alt{-webkit-appearance:none;appearance:none;
+.fbops .btn-main,.fbops .btn-alt,.fbops .btn-undo{-webkit-appearance:none;appearance:none;
   min-height:50px;border-radius:12px;cursor:pointer;margin:0}
 .fbops .btn-main{flex:1 1 auto;min-width:0;margin-right:12px;padding:10px 12px;border:0;
   background:var(--blue);color:#0b1220;font-size:15px;font-weight:650;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .fbops .btn-alt{flex:0 0 auto;padding:10px 18px;border:1px solid var(--line);
   background:transparent;color:var(--dim);font-size:13px;white-space:nowrap}
-.fbops .btn-main:last-child{margin-right:0}
+.fbops .btn-undo{flex:0 0 auto;margin-right:12px;padding:10px 11px;border:1px solid var(--line);
+  background:transparent;color:var(--dim2);font-size:12px;white-space:nowrap}
+.fbops .btn-main:last-child,.fbops .btn-undo:last-child{margin-right:0}
 @media (max-width:360px){
-  .fbops .btn-alt{padding:0 12px;font-size:12px}
+  .fbops .btn-alt{padding:0 11px;font-size:12px}
+  .fbops .btn-undo{padding:0 9px;margin-right:9px}
   .fbops .btn-main{margin-right:9px}
 }
 .done{text-align:center;color:var(--dim);line-height:2;margin:auto}
@@ -363,7 +374,15 @@ kbd{background:var(--card2);border:1px solid var(--line);border-radius:4px;paddi
         <div><div class="n" id="planDue">0</div><div class="t">待复习</div></div>
         <div><div class="n" id="planLearned">0</div><div class="t">累计已学</div></div>
       </div>
-      <div class="note" style="margin:12px 0 0">改大：今天立刻多引入新词。改小：今天已引入的不撤回，明天起按新数量走。</div>
+      <div class="plan-extra">
+        <button data-action="reviewLearned" data-days="1">复习昨天学的</button>
+        <button data-action="reviewLearned" data-days="3">复习近 3 天</button>
+      </div>
+      <div class="plan-extra">
+        <button data-action="cutToday" data-n="10">今天少背 10 个</button>
+        <button data-action="resetToday">恢复今日计划</button>
+      </div>
+      <div class="note" style="margin:12px 0 0">改大：今天立刻多引入新词。改小：今天已引入的不撤回，明天起按新数量走。<br>复习按钮把那几天学过的词插到队列最前面，再评一次后会按新的反馈重新排期。</div>
     </div>
     <div class="bp-foot"><button data-action="savePlan" class="plan-save">保存并更新今日队列</button></div>
   </div>
@@ -856,6 +875,7 @@ var session = { queue:[], shown:{}, total:0, done:0 };
 var bookCat = '', bookQuery = '';
 var current = null, tab = 'general';
 var feedback = null;   // 输入模式判分后的反馈
+var inputMode = 'cn';  // cn=写中文释义，en=拼英文单词；切换只影响当前这次输入
 
 function makeCard(w){
   var c = FSRS.newCard();
@@ -876,7 +896,10 @@ function buildSession(){
   due.sort(function(a,b){ return a.dueAt-b.dueAt; });
 
   var log = todayLog();
-  var need = Math.max(0, state.settings.dailyNew - (log.intro||0));
+  // 当天临时上限只影响今天：明天生成新的 dailyLog，cap 自然失效
+  var cap = Math.max(0, Math.min(state.settings.dailyNew,
+    log.cap == null ? state.settings.dailyNew : log.cap));
+  var need = Math.max(0, cap - (log.intro||0));
   // 词书已按常用度排序（COCA 词频升序），新词照此顺序引入，先学高频词。
   var fresh = pool().filter(function(p){ return !state.cards[cardKey(p.w)]; });
   var news = [];
@@ -893,6 +916,50 @@ function buildSession(){
   session.shown = {};
   session.total = session.queue.length;
   session.done = 0;
+}
+// 手动复习：把指定日期学过的词插回今天的队列，不改动它们原定排期
+function dayKeyOf(ts){
+  var d = new Date(ts);
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function reviewLearned(days){
+  var base = new Date(); base.setHours(0,0,0,0);
+  var want = {};
+  for(var i=1;i<=days;i++) want[dayKeyOf(base.getTime()-i*DAY)] = 1;
+  var inQueue = {};
+  for(var j=0;j<session.queue.length;j++){
+    var q = session.queue[j];
+    if(q) inQueue[cardKey(q.w)] = 1;
+  }
+  if(current) inQueue[cardKey(current.w)] = 1;
+  var picked = [];
+  for(var k in state.cards){
+    var c = state.cards[k];
+    if(c.enabled === false || c.state === 'new') continue;
+    if(!want[dayKeyOf(c.lastReview||0)]) continue;
+    if(inQueue[k]) continue;
+    picked.push(c);
+  }
+  if(!picked.length){ toast('那几天还没有学过的词'); return; }
+  picked.sort(function(a,b){ return (a.lastReview||0)-(b.lastReview||0); });
+  session.queue = picked.concat(session.queue);
+  session.total = session.done + session.queue.length;
+  document.getElementById('planPanel').classList.add('hidden');
+  header();
+  toast('已把 '+picked.length+' 个词插到最前面复习');
+}
+function cutToday(n){
+  var log = todayLog();
+  var cur = log.cap == null ? state.settings.dailyNew : log.cap;
+  log.cap = Math.max(0, cur - n);
+  saveNow(); buildSession(); next(); renderSheet(); header();
+  toast('今天最多背 '+log.cap+' 个新词');
+}
+function resetToday(){
+  var log = todayLog();
+  delete log.cap;
+  saveNow(); buildSession(); next(); renderSheet(); header();
+  toast('已恢复今日计划：'+state.settings.dailyNew+' 个新词');
 }
 function next(){
   if(current) session.done++;
@@ -935,17 +1002,39 @@ function submitInput(){
   var inp = document.getElementById('typeInput');
   var val = inp ? inp.value.trim() : '';
   if(!val){ toast('先写出意思，或点「想不起来」'); if(inp) inp.focus(); return; }
-  var j = judge(val, current.m, current.alt);
-  feedback = { input:val, expected:current.m, verdict:j.verdict,
-               score:j.score, matched:j.matched, altHit:j.alt, g:j.g };
+  var spell = inputMode==='en';
+  var j = spell ? judgeSpell(val, current.w) : judge(val, current.m, current.alt);
+  feedback = { input:val, expected:spell?current.w:current.m, mode:spell?'en':'cn',
+               verdict:j.verdict, score:j.score, matched:j.matched, altHit:j.alt, g:j.g };
   if(state.settings.autoSpeak) speak(current.w);
   render();
 }
-// 反馈页确认：按自动判分走，或强制算认识（同义词被误判时用）
+// 反馈页确认：按自动判分走，或强制算认识（同义词被误判时用）。
+// 评分前留一份快照，误判时可以连卡片状态、当日统计和队列一起还原。
+var undoSnap = null;
 function confirmFeedback(forceGood){
-  if(!feedback) return;
+  if(!feedback || !current) return;
+  var k = cardKey(current.w);
+  undoSnap = {
+    key:k, card:JSON.stringify(current), log:JSON.stringify(todayLog()),
+    queue:session.queue.slice(), done:session.done
+  };
   applyRating(forceGood ? 3 : feedback.g);
   next();
+}
+function undoRating(){
+  if(!undoSnap) return;
+  var s = undoSnap; undoSnap = null;
+  state.cards[s.key] = JSON.parse(s.card);
+  state.dailyLog[todayKey()] = JSON.parse(s.log);
+  session.queue = s.queue;
+  session.done = s.done;
+  var c = state.cards[s.key];
+  session.queue.unshift(c);
+  current = c;
+  feedback = null;
+  saveNow(); render();
+  toast('已撤销这次评分');
 }
 // 朗读：优先系统语音引擎；引擎缺失或没装英文语音时，退到在线词典音频。
 // 两者都没有才提示一次，避免每次点击都弹同样的报错。
@@ -1093,6 +1182,24 @@ function judge(input, meaning, alt){
 }
 
 // ── 渲染 ─────────────────────────────────────────────────
+// 拼写模式：只看英文拼写，忽略大小写和标点；错一个字母算接近
+function normSpell(s){ return String(s==null?'':s).toLowerCase().replace(/[^a-z]/g,''); }
+function judgeSpell(input, word){
+  var a = normSpell(input), b = normSpell(word);
+  if(!a) return {g:1, verdict:'wrong', score:0, matched:'', alt:''};
+  var d = editDist(a,b);
+  var g = d===0 ? 3 : (d===1 && b.length>4 ? 2 : 1);
+  return { g:g, verdict:g===3?'right':g===2?'near':'wrong',
+           score:d===0?1:Math.max(0,1-d/Math.max(3,b.length)), matched:d<=2?word:'', alt:'' };
+}
+function setInputMode(mode){
+  inputMode = mode;
+  var bs = document.querySelectorAll('.mode-switch button');
+  for(var i=0;i<bs.length;i++) bs[i].classList.toggle('on', bs[i].dataset.mode===mode);
+  var inp = document.getElementById('typeInput');
+  if(inp){ inp.placeholder = mode==='en' ? '输入英文拼写' : '输入汉语意思'; inp.focus(); }
+  updateActionArea();
+}
 function esc(s){
   return String(s==null?'':s).replace(/[&<>"']/g,function(c){
     return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
@@ -1124,10 +1231,16 @@ function stage(){
   if(!feedback){
     // 出词：写了就提交判分，没写就直接选档位
     html += '<div class="hint">写出意思自动判<br>或者直接选下面的档位</div>'
+          + '<div class="mode-switch">'
+          + '<button data-action="setInputMode" data-mode="cn" class="'+(inputMode==='cn'?'on':'')+'">写中文</button>'
+          + '<button data-action="setInputMode" data-mode="en" class="'+(inputMode==='en'?'on':'')+'">拼英文</button>'
+          + '</div>'
           + '<div class="typebox">'
-          + '<input class="type-input" id="typeInput" placeholder="输入汉语意思" autocomplete="off" '
+          + '<input class="type-input" id="typeInput" placeholder="'
+          + (inputMode==='en'?'输入英文拼写':'输入汉语意思')+'" autocomplete="off" '
           + 'autocapitalize="off" spellcheck="false">'
           + '<div id="actionArea"></div>'
+          + (undoSnap ? '<button class="giveup" data-action="undoRating">↶ 撤销上一词的评分</button>' : '')
           + '</div>';
     el.innerHTML = html + '</div>';
     el.scrollTop = 0;
@@ -1149,8 +1262,8 @@ function stage(){
   // 判定放在最上面：手机上卡片比屏幕长，放底部要滚动才看得到对错
   html += '<div class="verdict '+(v==='chosen'?['','wrong','near','right'][feedback.g]:v)+'">'+vtext+'</div>';
   html += '<div class="compare">'
-        + (feedback.input ? '<div class="line"><span class="k">你写的</span><span class="v">'+esc(feedback.input)+'</span></div>' : '')
-        + '<div class="line"><span class="k">标准</span><span class="v">'+esc(feedback.expected)+'</span></div>'
+        + (feedback.input ? '<div class="line"><span class="k">'+(feedback.mode==='en'?'你拼的':'你写的')+'</span><span class="v">'+esc(feedback.input)+'</span></div>' : '')
+        + '<div class="line"><span class="k">'+(feedback.mode==='en'?'正确':'标准')+'</span><span class="v">'+esc(feedback.expected)+'</span></div>'
         + altLine
         + (feedback.matched && v!=='right' && v!=='chosen'
            ? '<div class="line"><span class="k">命中</span><span class="v">'+esc(feedback.matched)+'</span></div>' : '')
@@ -1643,11 +1756,31 @@ function openWordInfo(){
     + '<div class="note-edit"><div class="label" style="font-size:12px;margin-bottom:6px">我的助记</div>'
     + '<textarea id="noteInput" placeholder="写点只属于你的记忆线索，比如词根、谐音、画面…">'+esc(c.note||'')+'</textarea>'
     + '<button class="btn" data-action="saveNote" style="margin:8px 0 14px">保存助记</button></div>'
+    + '<button class="btn" data-action="toggleFamiliar" style="margin:0 0 14px">'
+    + (c.familiar ? '取消熟知，恢复复习' : '标记为熟知，不再出现') + '</button>'
     + '<button class="wc-close" data-action="closeWordInfo">关闭</button>';
   document.getElementById('wordCard').innerHTML = html;
   document.getElementById('wordPanel').classList.remove('hidden');
 }
 function closeWordInfo(){ document.getElementById('wordPanel').classList.add('hidden'); }
+function toggleFamiliar(){
+  if(!current) return;
+  var k = cardKey(current.w), c = state.cards[k];
+  if(!c) return;
+  c.familiar = !c.familiar;
+  c.enabled = !c.familiar;
+  var wasCurrent = cardKey(current.w) === k;
+  session.queue = session.queue.filter(function(x){ return !x || cardKey(x.w)!==k; });
+  saveNow();
+  if(c.familiar && wasCurrent){
+    document.getElementById('wordPanel').classList.add('hidden');
+    next();
+    toast('已标记熟知，这张词不再出现');
+  }else{
+    openWordInfo(); render();
+    toast(c.familiar ? '已标记熟知，不再进入复习队列' : '已恢复复习');
+  }
+}
 
 // ── 事件 ─────────────────────────────────────────────────
 document.addEventListener('click', function(e){
@@ -1709,6 +1842,7 @@ document.addEventListener('click', function(e){
   else if(a==='speakText' && b.dataset.text) speak(b.dataset.text);
   else if(a==='wordInfo') openWordInfo();
   else if(a==='closeWordInfo') closeWordInfo();
+  else if(a==='toggleFamiliar') toggleFamiliar();
   else if(a==='saveNote'){
     if(!current) return;
     var ni = document.getElementById('noteInput');
@@ -1717,15 +1851,20 @@ document.addEventListener('click', function(e){
     saveNow(); toast(current.note ? '助记已保存' : '助记已清空');
     if(feedback) render();
   }
+  else if(a==='setInputMode') setInputMode(b.dataset.mode);
   else if(a==='quickRate') quickRate(parseInt(b.dataset.g,10));
   else if(a==='submitInput') submitInput();
   else if(a==='confirm') confirmFeedback(false);
   else if(a==='forceGood') confirmFeedback(true);
+  else if(a==='undoRating') undoRating();
   else if(a==='settings') openPanel();
   else if(a==='closePanel') closePanel();
   else if(a==='openBookPicker') openBookPicker();
   else if(a==='closeBookPicker') closeBookPicker();
   else if(a==='openPlan') openPlan();
+  else if(a==='reviewLearned') reviewLearned(parseInt(b.dataset.days,10)||1);
+  else if(a==='cutToday') cutToday(parseInt(b.dataset.n,10)||10);
+  else if(a==='resetToday') resetToday();
   else if(a==='closePlan') document.getElementById('planPanel').classList.add('hidden');
   else if(a==='savePlan') savePlan();
   else if(a==='saveDailyNew'){

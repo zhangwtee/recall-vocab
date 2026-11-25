@@ -26,7 +26,7 @@ try{
   await ev(`document.querySelector('[data-tab="words"]').click()`);await sleep(150);
   s=await ev(`({items:document.querySelectorAll('[data-book]').length,
     on:document.querySelector('[data-book].on')?.dataset.book})`);
-  ck('大学分类 13 项',s.items===13,s.items);
+  ck('大学分类 16 项',s.items===16,s.items);
   ck('当前选中四级大全',s.on==='cet4',s.on);
   await ev(`document.querySelector('[data-cat="留学"]').click()`);await sleep(150);
   await ev(`document.querySelector('[data-book="gre"]').click()`);await sleep(250);

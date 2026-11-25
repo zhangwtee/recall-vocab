@@ -74,9 +74,12 @@ try {
   for (const [w, h] of [[360, 640], [390, 844], [414, 896]]) {
     await cmd('Emulation.setDeviceMetricsOverride', { width: w, height: h, deviceScaleFactor: 2, mobile: true });
     await sleep(300);
-    // 保证处于反馈页
-    const onFeedback = await ev(`!!document.querySelector('[data-action="confirm"]')`);
-    if (!onFeedback) await toFeedback();
+    // 单文件版首次加载较大，等卡片真正出现再操作，避免把加载中的空白页当成排版失败
+    let tries = 0;
+    while (!(await ev(`!!document.querySelector('[data-action="confirm"]')`)) && tries++ < 12) {
+      await toFeedback();
+      await sleep(300);
+    }
 
     const m = await ev(`(function(){
       var k=document.querySelector('.compare .k');

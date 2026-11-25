@@ -30,7 +30,7 @@ try{
   ck('面板弹出',s.hidden===false);
   ck('显示当前词书',s.cur.includes('四级大全'),s.cur);
   ck('定位到大学分类',s.cat==='大学',s.cat);
-  ck('列出词书',s.books===13,s.books);
+  ck('列出词书',s.books===16,s.books);
   ck('有搜索框',s.hasSearch===true);
 
   console.log('\n[3] 面板内搜索（焦点保持）');
@@ -38,7 +38,7 @@ try{
   s=await ev(`({names:[...document.querySelectorAll('#bookPicker .bn')].map(x=>x.textContent),
     focus:document.activeElement?.dataset?.role,
     val:document.querySelector('#bookPicker [data-role="bookSearch"]').value})`);
-  ck('搜出六级词书',s.names.length===4&&s.names.every(n=>n.includes('六级')),s.names);
+  ck('搜出六级词书',s.names.length===5&&s.names.every(n=>n.includes('六级')),s.names);
   ck('搜索焦点保持',s.focus==='bookSearch',s.focus);
   ck('搜索词保留',s.val==='六级',s.val);
 
