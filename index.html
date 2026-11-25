@@ -767,7 +767,7 @@ function defaults(){
   return {
     version:1,
     settings:{ dailyNew:20, retention:0.9, accent:'en-US', autoSpeak:false,
-               hidePh:false, bookId:'cet4', customOn:false, dataBase:'' },
+               autoSpeakShow:true, hidePh:false, bookId:'cet4', customOn:false, dataBase:'' },
     cards:{}, customPool:[], dailyLog:{}, createdAt:Date.now()
   };
 }
@@ -965,11 +965,13 @@ function next(){
   if(current) session.done++;
   current = session.queue.shift() || null;
   feedback = null;
+  autoSpokenKey = null;
   if(current){
     var k = cardKey(current.w);
     session.shown[k] = (session.shown[k]||0)+1;
   }
   render();
+  speakOnShow();
 }
 
 // ── 交互 ─────────────────────────────────────────────────
@@ -1040,25 +1042,29 @@ function undoRating(){
 // 两者都没有才提示一次，避免每次点击都弹同样的报错。
 var TTS_OK = ('speechSynthesis' in window);
 var speechWarned = false;
+var speechStarted = false;                  // 最近一次朗读有没有真的出声
+var autoSpokenKey = null, speechPrimed = false;
 function isSingleWord(t){ return /^[A-Za-z][A-Za-z'’\-]*$/.test(String(t||'').trim()); }
 function warnNoSpeech(why){
   if(speechWarned) return;
   speechWarned = true;
   toast(why || '这个浏览器不能朗读 · 换 Chrome 或 Safari 打开就有声音');
 }
-function speakOnline(text){
+function speakOnline(text, quiet){
   if(!isSingleWord(text)) return false;
   try{
     var a = new Audio('https://dict.youdao.com/dictvoice?type='
       + (state.settings.accent==='en-GB' ? 1 : 2)
       + '&audio=' + encodeURIComponent(String(text).trim()));
     var p = a.play();
-    if(p && p.catch) p.catch(function(){ warnNoSpeech('朗读不可用：本机没有语音引擎，在线音频也取不到 · 换 Chrome 或 Safari 试试'); });
+    if(p && p.then) p.then(function(){ speechStarted = true; },
+      function(){ if(!quiet) warnNoSpeech('朗读不可用：本机没有语音引擎，在线音频也取不到 · 换 Chrome 或 Safari 试试'); });
     return true;
   }catch(e){ return false; }
 }
-function speak(text){
+function speak(text, quiet){
   if(!text) return;
+  speechStarted = false;
   if(TTS_OK){
     try{
       speechSynthesis.cancel();
@@ -1070,20 +1076,39 @@ function speak(text){
       for(var i=0;i<vs.length;i++){ if(vs[i].lang===accent){ v=vs[i]; break; } }
       if(!v) for(var j=0;j<vs.length;j++){ if(/^en/i.test(vs[j].lang)){ v=vs[j]; break; } }
       if(v) u.voice = v;
-      var started = false;
-      u.onstart = function(){ started = true; };
+      u.onstart = function(){ speechStarted = true; };
       speechSynthesis.speak(u);
       // 没装英文语音时 speak 不报错也不出声，等不到开始事件就换在线音频
       setTimeout(function(){
-        if(started) return;
+        if(speechStarted) return;
         if(speechSynthesis.speaking || speechSynthesis.pending) return;
-        if(!speakOnline(text)) warnNoSpeech();
+        if(!speakOnline(text, quiet) && !quiet) warnNoSpeech();
       }, 1200);
       return;
     }catch(e){}
   }
-  if(!speakOnline(text)) warnNoSpeech();
+  if(!speakOnline(text, quiet) && !quiet) warnNoSpeech();
 }
+// 新词出现就读一遍；同一张卡重复渲染（揭晓、撤销）不再读。
+function speakOnShow(force){
+  if(!state.settings.autoSpeakShow || !current) return;
+  var k = cardKey(current.w);
+  if(autoSpokenKey === k && !force) return;
+  autoSpokenKey = k;
+  speak(current.w, true);   // 自动朗读失败不弹提示，免得每出一词都打扰
+}
+// 手机浏览器会拦掉没有用户手势的首次朗读：第一次碰屏幕时补读当前词。
+function primeSpeech(e){
+  var t = e && e.target;
+  if(t && t.closest && t.closest('button,[data-action]')) return; // 用户自己点了按钮，不插手
+  if(speechPrimed) return;
+  speechPrimed = true;
+  if(!state.settings.autoSpeakShow || !current || speechStarted) return;
+  if(TTS_OK && (speechSynthesis.speaking || speechSynthesis.pending)) return;
+  speakOnShow(true);
+}
+document.addEventListener('pointerdown', primeSpeech, true);
+document.addEventListener('keydown', primeSpeech, true);
 
 // ── 中文释义判分 ─────────────────────────────────────────
 // 去词性/标点，把释义压成可比对的纯中文
@@ -1405,6 +1430,9 @@ function renderSheet(){
       + seg('accent',[['en-US','美音'],['en-GB','英音']],s.accent)+'</div>'
       + '<div class="row"><div><div class="label">揭晓前隐藏音标</div><div class="sub">想不起来的线索更少</div></div>'
       + seg('hidePh',[[0,'关'],[1,'开']],s.hidePh?1:0)+'</div>'
+      + '<div class="row"><div><div class="label">出现时自动朗读</div>'
+      + '<div class="sub">新词一出现就读一遍；个别浏览器首次需先碰一下屏幕</div></div>'
+      + seg('autoSpeakShow',[[0,'关'],[1,'开']],s.autoSpeakShow?1:0)+'</div>'
       + '<div class="row"><div><div class="label">揭晓后自动朗读</div></div>'
       + seg('autoSpeak',[[0,'关'],[1,'开']],s.autoSpeak?1:0)+'</div>'
       + '<div class="note">写出意思：<kbd>↵</kbd> 提交判分；不写：<kbd>1</kbd>/<kbd>2</kbd>/<kbd>3</kbd> 直接选档位<br>'
@@ -1818,6 +1846,7 @@ document.addEventListener('click', function(e){
     else if(name==='accent') state.settings.accent = val;
     else if(name==='hidePh') state.settings.hidePh = val==='1';
     else if(name==='autoSpeak') state.settings.autoSpeak = val==='1';
+    else if(name==='autoSpeakShow') state.settings.autoSpeakShow = val==='1';
     else if(name==='customOn'){ state.settings.customOn = val==='1'; resetPendingNew(); saveNow(); buildSession(); next(); renderSheet(); }
     save(); renderSheet(); header(); return;
   }
