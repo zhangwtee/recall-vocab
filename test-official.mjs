@@ -31,7 +31,7 @@ function ck(name, cond, extra) {
 const edge = spawn(EDGE, [
   '--headless=new', '--disable-gpu', '--no-first-run',
   `--remote-debugging-port=${PORT}`,
-  '--user-data-dir=F:/nixiang/memo/.edge-official',
+  '--user-data-dir=C:/Users/74406/AppData/Local/Temp/.edge-official',
   'file:///F:/nixiang/memo/index.html'
 ], { stdio: 'ignore' });
 

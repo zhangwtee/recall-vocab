@@ -44,7 +44,7 @@ function check(name, cond, extra) {
 
 const edge = spawn(EDGE, [
   '--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check',
-  `--remote-debugging-port=${PORT}`, '--user-data-dir=F:/nixiang/memo/.edge-test',
+  `--remote-debugging-port=${PORT}`, '--user-data-dir=C:/Users/74406/AppData/Local/Temp/.edge-test',
   '--allow-file-access-from-files', URL
 ], { stdio: 'ignore' });
 

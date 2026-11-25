@@ -12,7 +12,7 @@ async function ev(e){const r=await cmd('Runtime.evaluate',{expression:e,returnBy
 let pass=0,fail=0;
 function ck(n,c,x){if(c){pass++;console.log('  ok   '+n)}else{fail++;console.log('  FAIL '+n+(x!==undefined?'  → '+JSON.stringify(x):''))}}
 const edge=spawn(EDGE,['--headless=new','--disable-gpu','--no-first-run',`--remote-debugging-port=${PORT}`,
-  '--user-data-dir=F:/nixiang/memo/.edge-sched','--allow-file-access-from-files','file:///F:/nixiang/memo/index.html'],{stdio:'ignore'});
+  '--user-data-dir=C:/Users/74406/AppData/Local/Temp/.edge-sched','--allow-file-access-from-files','file:///F:/nixiang/memo/index.html'],{stdio:'ignore'});
 try{
   let u;for(let i=0;i<40;i++){try{const r=await fetch(`http://127.0.0.1:${PORT}/json/list`);const p=(await r.json()).find(x=>x.type==='page');if(p){u=p.webSocketDebuggerUrl;break}}catch{}await sleep(250)}
   ws=new WebSocket(u);await new Promise((r,j)=>{ws.onopen=r;ws.onerror=j});

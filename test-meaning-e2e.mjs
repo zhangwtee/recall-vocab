@@ -55,7 +55,7 @@ const PORT=9371;
 let ws, seq=0; const pending=new Map();
 function cmd(m,x={}){ return new Promise((res,rej)=>{ const id=++seq,t=setTimeout(()=>rej(new Error(m+' timeout')),15000); pending.set(id,v=>{clearTimeout(t);res(v)}); ws.send(JSON.stringify({id,method:m,params:x})); }); }
 async function ev(e){ const r=await cmd('Runtime.evaluate',{expression:e,returnByValue:true,awaitPromise:true}); if(r.exceptionDetails) throw new Error(r.exceptionDetails.text); return r.result.value; }
-const edge=spawn(EDGE,['--headless=new','--disable-gpu','--no-first-run','--remote-debugging-port='+PORT,'--user-data-dir=F:/nixiang/memo/.edge-meaning', 'file:///F:/nixiang/memo/index.html'],{stdio:'ignore'});
+const edge=spawn(EDGE,['--headless=new','--disable-gpu','--no-first-run','--remote-debugging-port='+PORT,'--user-data-dir=C:/Users/74406/AppData/Local/Temp/.edge-meaning', 'file:///F:/nixiang/memo/index.html'],{stdio:'ignore'});
 try{
   let url;
   for(let i=0;i<60;i++){ try{ const r=await fetch('http://127.0.0.1:'+PORT+'/json/list'); const p=(await r.json()).find(x=>x.type==='page'); if(p){url=p.webSocketDebuggerUrl;break;} }catch{} await sleep(250); }

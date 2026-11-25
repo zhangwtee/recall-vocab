@@ -30,7 +30,7 @@ function ck(name, cond, extra) {
 const edge = spawn(EDGE, [
   '--headless=new', '--disable-gpu', '--no-first-run',
   `--remote-debugging-port=${PORT}`,
-  '--user-data-dir=F:/nixiang/memo/.edge-single',
+  '--user-data-dir=C:/Users/74406/AppData/Local/Temp/.edge-single',
   // 模拟断网：任何域名都解析失败，确保页面没有偷联网
   '--host-resolver-rules=MAP * ~NOTFOUND',
   'file:///F:/nixiang/memo/memo.html'
