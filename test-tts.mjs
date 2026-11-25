@@ -117,11 +117,17 @@ try {
   })()`);
   ck('揭晓后有例句朗读按钮', !!exBtn, exBtn);
 
+  // 让在线音频失败，验证整句也会走降级链并给出一次提示
+  await ev(`(function(){
+    window.Audio=function(u){ window.__audioUrls.push(String(u));
+      this.play=function(){ return Promise.reject(new Error('blocked')); }; };
+  })()`);
   const before = await ev(`window.__audioUrls.length`);
   await ev(`(function(){ var b=document.querySelector('.ex-speak[data-text]'); if(b) b.click(); })()`);
   await sleep(1600);
   const after = await ev(`window.__audioUrls.length`);
-  ck('整句不走向在线音频', after === before, { before, after });
+  ck('整句也退到在线音频', after === before + 1, { before, after });
+  ck('在线音频地址带上整句', /dict\.youdao\.com\/dictvoice/.test((await ev(`window.__audioUrls.slice()`)).pop() || ''));
 
   const t1 = await ev(`window.__toasts.length`);
   ck('朗读不可用时有提示', t1 >= 1, await ev(`window.__toasts.slice()`));

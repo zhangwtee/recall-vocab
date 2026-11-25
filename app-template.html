@@ -93,6 +93,8 @@ main{flex:1;min-height:0;display:flex;flex-direction:column;padding:12px 16px;
 .spell-sub{font-size:12px;color:var(--dim2);text-align:center;margin-bottom:8px;letter-spacing:1px}
 .spell-prompt{font-size:clamp(22px,5.6vw,32px);font-weight:650;line-height:1.5;
   text-align:center;word-break:break-word;margin-bottom:10px}
+.peek-mean{width:100%;text-align:center;font-size:19px;line-height:1.7;margin-bottom:10px}
+.peek-alt{width:100%;text-align:center;font-size:13px;color:var(--dim);line-height:1.6;margin-bottom:14px}
 .phonetic{display:flex;align-items:center;gap:10px;color:var(--dim);font-size:16px;min-height:26px}
 .speak{border:0;background:var(--card2);color:var(--blue);width:36px;height:36px;border-radius:50%;
   font-size:16px;cursor:pointer;display:grid;place-items:center;flex:none}
@@ -243,6 +245,11 @@ textarea{width:100%;min-height:130px;background:var(--card);color:var(--fg);bord
   padding:15px 14px 12px;margin-bottom:14px}
 .chart-title{font-size:13px;font-weight:600;margin-bottom:3px}
 .chart-sub{font-size:11px;color:var(--dim2);margin-bottom:12px;line-height:1.5}
+.conf-group{border-top:1px solid var(--line);padding:11px 0 3px}
+.conf-input{font-size:15px;font-weight:600;margin-bottom:5px}
+.conf-meta{font-size:11px;color:var(--dim2);line-height:1.6}
+.conf-cand{font-size:12px;color:var(--dim);line-height:1.7;margin-top:5px}
+.conf-cand b{color:var(--blue);font-weight:600}
 .chart-card svg{width:100%;height:auto;display:block;overflow:visible}
 .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--dim);margin-top:10px}
 .legend i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:-1px}
@@ -411,7 +418,7 @@ function defaults(){
     version:1,
     settings:{ dailyNew:20, retention:0.9, accent:'en-US', autoSpeak:false,
                autoSpeakShow:true, hidePh:false, bookId:'cet4', customOn:false, dataBase:'' },
-    cards:{}, customPool:[], dailyLog:{}, createdAt:Date.now()
+    cards:{}, customPool:[], dailyLog:{}, mistakes:[], createdAt:Date.now()
   };
 }
 function load(){
@@ -429,6 +436,7 @@ function load(){
       delete s.settings.poolMode;
     }
     s.cards = s.cards||{}; s.customPool = s.customPool||[]; s.dailyLog = s.dailyLog||{};
+    if(!Array.isArray(s.mistakes)) s.mistakes = [];
     return s;
   }catch(e){ return defaults(); }
 }
@@ -514,9 +522,9 @@ function shuffle(a){
 function cardKey(w){ return String(w).toLowerCase(); }
 
 // ── 会话 ─────────────────────────────────────────────────
-var session = { queue:[], shown:{}, total:0, done:0 };
+var session = { queue:[], shown:{}, total:0, done:0, history:[] };
 var bookCat = '', bookQuery = '';
-var current = null, tab = 'general';
+var current = null, peekCard = null, drill = null, tab = 'general', confusionOpen = false;
 var feedback = null;   // 输入模式判分后的反馈
 var inputMode = 'cn';  // cn=写中文释义，en=拼英文单词；切换只影响当前这次输入
 
@@ -605,7 +613,12 @@ function resetToday(){
   toast('已恢复今日计划：'+state.settings.dailyNew+' 个新词');
 }
 function next(){
-  if(current) session.done++;
+  if(current){
+    session.done++;
+    session.history.push(current);
+    if(session.history.length > 50) session.history.shift();
+  }
+  peekCard = null; drill = null;
   current = session.queue.shift() || null;
   feedback = null;
   autoSpokenKey = null;
@@ -651,8 +664,17 @@ function submitInput(){
   var j = spell ? judgeSpell(val, current.w) : judge(val, current.m, current.alt);
   feedback = { input:val, expected:spell?current.w:current.m, mode:spell?'en':'cn',
                verdict:j.verdict, score:j.score, matched:j.matched, altHit:j.alt, g:j.g };
+  if(!spell && j.g<3) recordMistake(current, val, j);
   if(state.settings.autoSpeak) speak(current.w);
   render();
+}
+// 每次写错都留一条，供最后的「错义分析」反查混淆词。只存中文输入，上限避免无限膨胀。
+function recordMistake(c, input, j){
+  if(!Array.isArray(state.mistakes)) state.mistakes = [];
+  state.mistakes.push({ w:c.w, input:String(input).trim(), m:c.m, alt:c.alt||null,
+                        v:j.verdict, t:Date.now(), book:state.settings.bookId });
+  if(state.mistakes.length > 500) state.mistakes = state.mistakes.slice(-500);
+  save();
 }
 // 反馈页确认：按自动判分走，或强制算认识（同义词被误判时用）。
 // 评分前留一份快照，误判时可以连卡片状态、当日统计和队列一起还原。
@@ -678,23 +700,35 @@ function undoRating(){
   session.queue.unshift(c);
   current = c;
   feedback = null;
+  if(session.history.length && cardKey(session.history[session.history.length-1].w)===s.key) session.history.pop();
   saveNow(); render();
   toast('已撤销这次评分');
 }
+// 回看上一词：只看意思，不改评分、统计和队列
+function backWord(){
+  if(peekCard || !session.history.length) return;
+  peekCard = session.history[session.history.length-1];
+  render();
+}
+function closePeek(){ peekCard = null; render(); }
 // 朗读：优先系统语音引擎；引擎缺失或没装英文语音时，退到在线词典音频。
 // 两者都没有才提示一次，避免每次点击都弹同样的报错。
 var TTS_OK = ('speechSynthesis' in window);
 var speechWarned = false;
 var speechStarted = false;                  // 最近一次朗读有没有真的出声
 var autoSpokenKey = null, speechPrimed = false;
-function isSingleWord(t){ return /^[A-Za-z][A-Za-z'’\-]*$/.test(String(t||'').trim()); }
+// 在线词典音频除了单词也能读短英文句；太长的整句不送，免得 URL 过长
+function speakableText(t){
+  var s = String(t||'').trim();
+  return s.length>0 && s.length<=160 && !/[\u0000-\u001F\u4E00-\u9FFF\u3040-\u30FF]/.test(s);
+}
 function warnNoSpeech(why){
   if(speechWarned) return;
   speechWarned = true;
   toast(why || '这个浏览器不能朗读 · 换 Chrome 或 Safari 打开就有声音');
 }
 function speakOnline(text, quiet){
-  if(!isSingleWord(text)) return false;
+  if(!speakableText(text)) return false;
   try{
     var a = new Audio('https://dict.youdao.com/dictvoice?type='
       + (state.settings.accent==='en-GB' ? 1 : 2)
@@ -734,7 +768,7 @@ function speak(text, quiet){
 }
 // 新词出现就读一遍；同一张卡重复渲染（揭晓、撤销）不再读。
 function speakOnShow(force){
-  if(!state.settings.autoSpeakShow || !current) return;
+  if(!state.settings.autoSpeakShow || !current || drill || peekCard) return;
   if(inputMode==='en' && !feedback) return;   // 拼英文时读出来等于报答案
   var k = cardKey(current.w);
   if(autoSpokenKey === k && !force) return;
@@ -747,7 +781,7 @@ function primeSpeech(e){
   if(t && t.closest && t.closest('button,[data-action]')) return; // 用户自己点了按钮，不插手
   if(speechPrimed) return;
   speechPrimed = true;
-  if(!state.settings.autoSpeakShow || !current || speechStarted) return;
+  if(!state.settings.autoSpeakShow || !current || speechStarted || peekCard || drill) return;
   if(TTS_OK && (speechSynthesis.speaking || speechSynthesis.pending)) return;
   speakOnShow(true);
 }
@@ -861,6 +895,22 @@ function judgeSpell(input, word){
   return { g:g, verdict:g===3?'right':g===2?'near':'wrong',
            score:d===0?1:Math.max(0,1-d/Math.max(3,b.length)), matched:d<=2?word:'', alt:'' };
 }
+// 揭晓后的拼写复盘：只练习和提示，不改 FSRS 排期与当日统计
+function startDrill(){
+  if(!current || !feedback) return;
+  drill = { w:current.w, m:current.m, result:null };
+  render();
+}
+function submitDrill(){
+  if(!drill) return;
+  var inp = document.getElementById('drillInput');
+  var val = inp ? inp.value.trim() : '';
+  if(!val){ toast('先写出英文拼写'); return; }
+  var j = judgeSpell(val, drill.w);
+  drill.result = { input:val, g:j.g };
+  render();
+}
+function closeDrill(){ drill = null; render(); }
 function setInputMode(mode){
   inputMode = mode;
   var bs = document.querySelectorAll('.mode-switch button');
@@ -890,6 +940,44 @@ function stage(){
       + '<button data-action="more">再加 10 个新词</button></div>';
     return;
   }
+  if(peekCard){
+    var pc = peekCard;
+    el.innerHTML = '<div class="card">'
+      + '<div class="word">'+esc(pc.w)+'</div>'
+      + '<div class="phonetic">'+(pc.p?'<span>'+esc(pc.p)+'</span>':'<span></span>')
+      + '<button class="speak" data-action="speakText" data-text="'+esc(pc.w)+'" title="朗读">🔊</button></div>'
+      + '<div class="divider"></div>'
+      + '<div class="peek-mean">'+esc(pc.m||'')+'</div>'
+      + (pc.alt && pc.alt.length ? '<div class="peek-alt">另有 '+esc(pc.alt.join('、'))+'</div>' : '')
+      + (pc.tip ? '<div class="note-box"><span class="nt">书中助记</span>'+esc(pc.tip)+'</div>' : '')
+      + (pc.note ? '<div class="note-box"><span class="nt">我的助记</span>'+esc(pc.note)+'</div>' : '')
+      + renderRef(pc) + renderExamples(pc.w, pc)
+      + '<button class="btn" data-action="closePeek">回到当前词</button>'
+      + '</div>';
+    el.scrollTop = 0;
+    return;
+  }
+  if(drill){
+    var dr = drill;
+    el.innerHTML = '<div class="card">'
+      + '<div class="spell-sub">答完了，再拼一遍</div>'
+      + '<div class="spell-prompt">'+esc(meaningItems(dr.m).join(' / '))+'</div>'
+      + '<div class="divider"></div>'
+      + '<div class="typebox">'
+      + '<input class="type-input" id="drillInput" placeholder="输入英文拼写" autocomplete="off" '
+      + 'autocapitalize="off" spellcheck="false">'
+      + '<button class="submit" data-action="submitDrill">提交拼写</button></div>'
+      + (dr.result ? '<div class="verdict '+(dr.result.g===3?'right':dr.result.g===2?'near':'wrong')+'">'
+          + (dr.result.g===3?'✓ 拼对了':dr.result.g===2?'≈ 差一个字母':'✗ 拼错了')+'</div>'
+          + '<div class="compare"><div class="line"><span class="k">你拼的</span><span class="v">'+esc(dr.result.input)+'</span></div>'
+          + '<div class="line"><span class="k">正确</span><span class="v">'+esc(dr.w)+'</span></div></div>' : '')
+      + '<button class="btn" data-action="closeDrill">返回反馈</button>'
+      + '</div>';
+    el.scrollTop = 0;
+    var di = document.getElementById('drillInput');
+    if(di) di.focus();
+    return;
+  }
   var c = current;
   var ph = (state.settings.hidePh && !feedback) ? '' : c.p;
   var spelling = (inputMode==='en' && !feedback);
@@ -914,6 +1002,7 @@ function stage(){
           + (inputMode==='en'?'输入英文拼写':'输入汉语意思')+'" autocomplete="off" '
           + 'autocapitalize="off" spellcheck="false">'
           + '<div id="actionArea"></div>'
+          + (session.history.length ? '<button class="giveup" data-action="backWord">← 回看上一词</button>' : '')
           + (undoSnap ? '<button class="giveup" data-action="undoRating">↶ 撤销上一词的评分</button>' : '')
           + '</div>';
     el.innerHTML = html + '</div>';
@@ -942,6 +1031,8 @@ function stage(){
         + (feedback.matched && v!=='right' && v!=='chosen'
            ? '<div class="line"><span class="k">命中</span><span class="v">'+esc(feedback.matched)+'</span></div>' : '')
         + '</div>'
+        + '<button class="giveup" data-action="startDrill">再拼一次这个词</button>'
+        + (session.history.length ? '<button class="giveup" data-action="backWord">← 回看上一词</button>' : '')
         + renderExamples(c.w)
         + renderRef(c)
         + (c.tip ? '<div class="note-box"><span class="nt">书中助记</span>'+esc(c.tip)+'</div>' : '')
@@ -967,9 +1058,10 @@ function renderRef(c){
        + '<span class="ref-pos">'+(POS_CN[r.pos]||r.pos||'')+'</span>'+esc(r.m)+'</div>';
 }
 // 例句（揭晓后显示，点英文可朗读）：词书自带真题例句优先，否则用通用例句库
-function renderExamples(word){
-  var ex = (current && current.lxyEx && String(current.w).toLowerCase()===String(word).toLowerCase())
-    ? [current.lxyEx] : null;
+function renderExamples(word, card){
+  var src = card || current;
+  var ex = (src && src.lxyEx && String(src.w).toLowerCase()===String(word).toLowerCase())
+    ? [src.lxyEx] : null;
   if(!ex && window.getExamples) ex = window.getExamples(word);
   if(!ex || !ex.length) return '';
   var rows = '';
@@ -1102,7 +1194,7 @@ function renderSheet(){
       + '<button class="btn danger" data-action="clearCustom">清空自定义词库</button>';
     renderWordList('');
   }else if(tab==='stats'){
-    renderStats(el);
+    if(confusionOpen) renderConfusion(el); else renderStats(el);
   }else{
     var learned = Object.keys(state.cards).length;
     var dueNum = Object.keys(state.cards).filter(function(k){ return state.cards[k].dueAt<=Date.now(); }).length;
@@ -1227,6 +1319,7 @@ function renderStats(el){
     + '<div class="stat"><div class="n">'+due+'</div><div class="t">今天待复习</div></div>'
     + '<div class="stat"><div class="n">'+streak+'</div><div class="t">连续学习天数</div></div>'
     + '</div>'
+    + '<button class="btn" data-action="openConfusion">错义分析（'+((state.mistakes||[]).length)+' 条）</button>'
 
     + '<div class="chart-card"><div class="chart-title">遗忘曲线</div>'
     + '<div class="chart-sub">记忆会衰减，复习会把曲线重新抬起来。横轴 1×S 处大约还记得 90%。</div>'
@@ -1259,6 +1352,95 @@ function renderStats(el){
 
     + '<div class="chart-card"><div class="chart-title">最近学习记录</div>'
     + recentDaysHTML() + '</div>';
+}
+// 错义分析：把写错的中文反查回词库，看看是不是想成了另一个形近词
+function wordSim(a,b){
+  var x=String(a||'').toLowerCase().replace(/[^a-z]/g,''), y=String(b||'').toLowerCase().replace(/[^a-z]/g,'');
+  if(!x||!y) return 0;
+  return Math.max(0, 1 - editDist(x,y)/Math.max(x.length,y.length));
+}
+function senseIndex(){
+  var idx = {};
+  var books = getBooks();
+  for(var i=0;i<books.length;i++){
+    var ws = books[i].words||[];
+    for(var j=0;j<ws.length;j++){
+      var p = ws[j];
+      var senses = meaningItems(p.m).concat(meaningItems(String(p.alt||'')));
+      for(var k=0;k<senses.length;k++){
+        var key = normInput(senses[k]);
+        if(key.length<2) continue;
+        if(!idx[key]) idx[key] = [];
+        if(idx[key].length<8 && idx[key].indexOf(p.w)<0) idx[key].push(p.w);
+      }
+    }
+  }
+  return idx;
+}
+function confuseCandidates(input, word, idx){
+  var key = normInput(input), hits = [], seen = {};
+  function add(w, senseSim){
+    if(!w || String(w).toLowerCase()===String(word).toLowerCase()) return;
+    var k = String(w).toLowerCase();
+    if(seen[k]) return;
+    seen[k] = 1;
+    hits.push({w:w, sim:wordSim(word,w), sense:senseSim});
+  }
+  if(idx[key]) idx[key].forEach(function(w){ add(w,1); });
+  if(hits.length<3 && key){
+    for(var k in idx){
+      if(k.indexOf(key.charAt(0))<0 && key.indexOf(k.charAt(0))<0) continue;
+      var s = similarity(key,k);
+      if(s>=0.8) idx[k].forEach(function(w){ add(w,s); });
+      if(hits.length>=8) break;
+    }
+  }
+  hits.sort(function(a,b){ return b.sense-a.sense || b.sim-a.sim; });
+  return hits.slice(0,3);
+}
+function renderConfusion(el){
+  var list = Array.isArray(state.mistakes) ? state.mistakes : [];
+  el.innerHTML = '<button class="btn" data-action="closeConfusion">← 返回统计</button>'
+    + '<div class="chart-card"><div class="chart-title">错义分析</div>'
+    + '<div class="chart-sub">写错的意思会留在这里。程序会拿它去词库里反查，'
+    + '看看你是不是想成了另一个拼写相近的词；只是线索，不是标准答案。</div>'
+    + (list.length ? '<button class="btn danger" data-action="clearMistakes">清空错义记录</button>'
+                   : '<div class="conf-meta">还没有记录。写错一次意思后就会出现在这里。</div>')
+    + '</div>';
+  if(!list.length) return;
+  var groups = {}, order = [];
+  for(var i=0;i<list.length;i++){
+    var m = list[i], key = normInput(m.input) || String(m.input).trim();
+    if(!groups[key]){ groups[key] = {label:String(m.input).trim(), count:0, items:[]}; order.push(key); }
+    groups[key].count++; groups[key].items.push(m);
+  }
+  order.sort(function(a,b){ return groups[b].count-groups[a].count; });
+  var idx = senseIndex();
+  for(var g=0; g<Math.min(order.length,30); g++){
+    var item = groups[order[g]], first = item.items[item.items.length-1];
+    var words = [];
+    for(var q=0;q<item.items.length;q++){
+      if(words.indexOf(item.items[q].w)<0) words.push(item.items[q].w);
+    }
+    var cand = confuseCandidates(item.label, first.w, idx);
+    var cands = cand.length
+      ? cand.map(function(x){ return '<b>'+esc(x.w)+'</b>（词形相近 '+Math.round(x.sim*100)+'%）'; }).join('、')
+      : '<span class="conf-meta">词库里没找到同义的其他词</span>';
+    el.innerHTML += '<div class="chart-card"><div class="conf-group">'
+      + '<div class="conf-input">你写的「'+esc(item.label)+'」 × '+item.count+'</div>'
+      + '<div class="conf-meta">对应单词：'+esc(words.slice(0,5).join('、'))
+      + (words.length>5?' 等':'')+' · 标准：'+esc(first.m||'')+'</div>'
+      + '<div class="conf-cand">可能想的是 '+cands+'</div>'
+      + '</div></div>';
+  }
+  if(order.length>30) el.innerHTML += '<div class="note">仅显示写错最多的 30 组。</div>';
+}
+function openConfusion(){ confusionOpen = true; renderSheet(); }
+function closeConfusion(){ confusionOpen = false; renderSheet(); }
+function clearMistakes(){
+  if(!confirm('清空全部错义记录？')) return;
+  state.mistakes = [];
+  saveNow(); renderSheet(); toast('错义记录已清空');
 }
 // 词汇量估计：基于已学词的记忆状态，保守估算，明确说明局限
 function vocabEstimateHTML(){
@@ -1535,6 +1717,14 @@ document.addEventListener('click', function(e){
   else if(a==='confirm') confirmFeedback(false);
   else if(a==='forceGood') confirmFeedback(true);
   else if(a==='undoRating') undoRating();
+  else if(a==='backWord') backWord();
+  else if(a==='closePeek') closePeek();
+  else if(a==='openConfusion') openConfusion();
+  else if(a==='closeConfusion') closeConfusion();
+  else if(a==='clearMistakes') clearMistakes();
+  else if(a==='startDrill') startDrill();
+  else if(a==='submitDrill') submitDrill();
+  else if(a==='closeDrill') closeDrill();
   else if(a==='settings') openPanel();
   else if(a==='closePanel') closePanel();
   else if(a==='openBookPicker') openBookPicker();
@@ -1663,6 +1853,11 @@ document.addEventListener('keydown', function(e){
   }
   if(!document.getElementById('panel').classList.contains('hidden')){
     if(e.key==='Escape') closePanel();
+    return;
+  }
+  if(drill){
+    if(e.key==='Escape'){ e.preventDefault(); closeDrill(); }
+    else if(e.key==='Enter'){ e.preventDefault(); submitDrill(); }
     return;
   }
   if(feedback){
