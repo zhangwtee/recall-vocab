@@ -1,8 +1,11 @@
 node_modules/
 .edge-*/
+# 单文件离线版为构建产物，用 node build-single.js 生成，不入库
+memo.html
 raw/*
 !raw/official-cet4.txt
 !raw/official-cet6.txt
+!raw/sense-extra.json
 examples/
 cet4-raw.txt
 shot*.mjs

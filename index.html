@@ -78,8 +78,9 @@ header{flex:none;display:flex;align-items:center;gap:12px;padding:16px 20px 8px}
 .bar>i{display:block;height:100%;background:var(--blue);width:0;transition:width .25s}
 
 /* 卡片 */
-main{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:12px 16px}
-.card{width:100%;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+main{flex:1;min-height:0;display:flex;flex-direction:column;padding:12px 16px;
+  overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+.card{width:100%;max-width:520px;margin:auto;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
   padding:32px 24px 24px;display:flex;flex-direction:column;align-items:center;
   box-shadow:0 12px 40px rgba(0,0,0,.28)}
 .word{font-size:clamp(38px,10vw,60px);font-weight:650;letter-spacing:-1px;line-height:1.15;
@@ -132,21 +133,34 @@ main{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;
 .giveup{width:100%;padding:10px;border:0;background:transparent;color:var(--dim2);
   font-size:12px;cursor:pointer;margin-top:12px}
 .giveup:hover{color:var(--dim)}
-.verdict{font-size:17px;font-weight:650;text-align:center;margin-bottom:14px}
-.verdict.right{color:var(--green)}
-.verdict.near{color:var(--yellow)}
-.verdict.wrong{color:var(--red)}
+/* 判定条：单独一条带底色，不跟上面的分隔线、下面的对比框糊在一起 */
+.verdict{width:100%;text-align:center;font-size:15px;font-weight:650;line-height:1.45;
+  padding:9px 12px;border-radius:10px;margin:0 0 12px;background:var(--card2);color:var(--dim)}
+.verdict.right{color:var(--green);background:rgba(74,222,128,.10)}
+.verdict.near{color:var(--yellow);background:rgba(251,191,36,.10)}
+.verdict.wrong{color:var(--red);background:rgba(248,113,113,.10)}
 .verdict.giveup{color:var(--dim)}
 .compare{width:100%;background:var(--card2);border-radius:10px;padding:12px 14px;margin-bottom:18px}
 .compare .line{display:flex;gap:10px;font-size:14px;line-height:1.65;padding:3px 0}
-.compare .line .k{color:var(--dim2);flex:none;width:46px}
+.compare .line .k{color:var(--dim2);flex:0 0 3.6em;white-space:nowrap}
 .compare .line .v{color:var(--fg);word-break:break-all}
-.fbops{width:100%;display:flex;gap:9px}
-.fbops .btn-main{flex:1;padding:14px;border:0;border-radius:12px;background:var(--blue);
-  color:#0b1220;font-size:15px;font-weight:650;cursor:pointer}
-.fbops .btn-alt{padding:14px 16px;border:1px solid var(--line);border-radius:12px;
-  background:transparent;color:var(--dim);font-size:13px;cursor:pointer}
-.done{text-align:center;color:var(--dim);line-height:2}
+/* 底部操作栏：间距用 margin 给，不依赖 flex gap（老 WebView 上 gap 不生效会贴在一起） */
+.fbops{width:100%;display:flex;align-items:stretch}
+#dock{flex:none;width:100%;max-width:680px;margin:0 auto;padding:6px 16px 8px;display:none}
+#dock.show{display:block}
+.fbops .btn-main,.fbops .btn-alt{-webkit-appearance:none;appearance:none;
+  min-height:50px;border-radius:12px;cursor:pointer;margin:0}
+.fbops .btn-main{flex:1 1 auto;min-width:0;margin-right:12px;padding:10px 12px;border:0;
+  background:var(--blue);color:#0b1220;font-size:15px;font-weight:650;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fbops .btn-alt{flex:0 0 auto;padding:10px 18px;border:1px solid var(--line);
+  background:transparent;color:var(--dim);font-size:13px;white-space:nowrap}
+.fbops .btn-main:last-child{margin-right:0}
+@media (max-width:360px){
+  .fbops .btn-alt{padding:0 12px;font-size:12px}
+  .fbops .btn-main{margin-right:9px}
+}
+.done{text-align:center;color:var(--dim);line-height:2;margin:auto}
 .done .big{font-size:44px;margin-bottom:8px}
 .done .title{font-size:20px;color:var(--fg);font-weight:600;margin-bottom:16px}
 .done button{margin-top:22px;padding:12px 26px;border:1px solid var(--line);border-radius:10px;
@@ -297,6 +311,7 @@ kbd{background:var(--card2);border:1px solid var(--line);border-radius:4px;paddi
   </header>
   <div class="bar"><i id="barFill"></i></div>
   <main id="stage"></main>
+  <div id="dock"></div>
   <footer>
     <span id="statNew">新词 0</span>
     <span id="statReview">复习 0</span>
@@ -756,18 +771,45 @@ function load(){
   }catch(e){ return defaults(); }
 }
 var state = load();
+// 有些环境（iOS 的文件预览、隐私模式、file:// 受限策略）不允许写本地存储，
+// 这时程序还能跑，但进度关掉就没了，必须在界面上说清楚。
+var storageOK = (function(){
+  try{
+    var k='__memo_probe__';
+    localStorage.setItem(k,'1');
+    var v=localStorage.getItem(k);
+    localStorage.removeItem(k);
+    return v==='1';
+  }catch(e){ return false; }
+})();
+function warnNoStorage(){
+  if(document.getElementById('lsWarn')) return;
+  var d=document.createElement('div');
+  d.id='lsWarn';
+  d.style.cssText='position:fixed;left:0;right:0;bottom:0;z-index:80;background:#8a3a2a;color:#fff;'+
+    'font-size:13px;line-height:1.5;padding:10px 44px 10px 14px;box-shadow:0 -2px 10px rgba(0,0,0,.2)';
+  d.innerHTML='<b>此环境无法保存学习进度</b><br>'+
+    '浏览器禁止了本页的本地存储（常见于文件预览、无痕模式）。可以正常背词，但关掉后会全部丢失。'+
+    '建议换 Chrome / Safari 正常打开，或改用托管链接。';
+  var x=document.createElement('div');
+  x.textContent='×';
+  x.style.cssText='position:absolute;right:14px;top:8px;font-size:20px;cursor:pointer;opacity:.8';
+  x.onclick=function(){ d.remove(); };
+  d.appendChild(x);
+  document.body.appendChild(d);
+}
 var saveTimer = null;
 function save(){
   clearTimeout(saveTimer);
   saveTimer = setTimeout(function(){
     try{ localStorage.setItem(LS, JSON.stringify(state)); }
-    catch(e){ toast('保存失败：本地存储已满，请导出备份'); }
+    catch(e){ if(!storageOK) warnNoStorage(); else toast('保存失败：本地存储已满，请导出备份'); }
   }, 120);
 }
 function saveNow(){
   clearTimeout(saveTimer);
   try{ localStorage.setItem(LS, JSON.stringify(state)); }
-  catch(e){ toast('保存失败：本地存储已满'); }
+  catch(e){ if(!storageOK) warnNoStorage(); else toast('保存失败：本地存储已满'); }
 }
 function todayKey(){
   var d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
@@ -819,6 +861,7 @@ function makeCard(w){
   var c = FSRS.newCard();
   c.w=w.w; c.p=w.p||''; c.m=w.m||''; c.ex=w.ex||'';
   c.tip=w.tip||''; c.lxyEx=w.ex||null; c.ref=w.ref||null;
+  c.alt=w.alt||null;
   c.enabled=true; c.addedAt=Date.now(); c.note='';
   return c;
 }
@@ -892,9 +935,9 @@ function submitInput(){
   var inp = document.getElementById('typeInput');
   var val = inp ? inp.value.trim() : '';
   if(!val){ toast('先写出意思，或点「想不起来」'); if(inp) inp.focus(); return; }
-  var j = judge(val, current.m);
+  var j = judge(val, current.m, current.alt);
   feedback = { input:val, expected:current.m, verdict:j.verdict,
-               score:j.score, matched:j.matched, g:j.g };
+               score:j.score, matched:j.matched, altHit:j.alt, g:j.g };
   if(state.settings.autoSpeak) speak(current.w);
   render();
 }
@@ -904,20 +947,53 @@ function confirmFeedback(forceGood){
   applyRating(forceGood ? 3 : feedback.g);
   next();
 }
-function speak(text){
-  if(!('speechSynthesis' in window)){ toast('当前浏览器不支持朗读'); return; }
+// 朗读：优先系统语音引擎；引擎缺失或没装英文语音时，退到在线词典音频。
+// 两者都没有才提示一次，避免每次点击都弹同样的报错。
+var TTS_OK = ('speechSynthesis' in window);
+var speechWarned = false;
+function isSingleWord(t){ return /^[A-Za-z][A-Za-z'’\-]*$/.test(String(t||'').trim()); }
+function warnNoSpeech(why){
+  if(speechWarned) return;
+  speechWarned = true;
+  toast(why || '这个浏览器不能朗读 · 换 Chrome 或 Safari 打开就有声音');
+}
+function speakOnline(text){
+  if(!isSingleWord(text)) return false;
   try{
-    speechSynthesis.cancel();
-    var u = new SpeechSynthesisUtterance(text);
-    var accent = state.settings.accent;
-    u.lang = accent; u.rate = 0.85;
-    var vs = speechSynthesis.getVoices()||[];
-    var v = null;
-    for(var i=0;i<vs.length;i++){ if(vs[i].lang===accent){ v=vs[i]; break; } }
-    if(!v) for(var j=0;j<vs.length;j++){ if(/^en/i.test(vs[j].lang)){ v=vs[j]; break; } }
-    if(v) u.voice = v;
-    speechSynthesis.speak(u);
-  }catch(e){ toast('朗读失败：'+e.message); }
+    var a = new Audio('https://dict.youdao.com/dictvoice?type='
+      + (state.settings.accent==='en-GB' ? 1 : 2)
+      + '&audio=' + encodeURIComponent(String(text).trim()));
+    var p = a.play();
+    if(p && p.catch) p.catch(function(){ warnNoSpeech('朗读不可用：本机没有语音引擎，在线音频也取不到 · 换 Chrome 或 Safari 试试'); });
+    return true;
+  }catch(e){ return false; }
+}
+function speak(text){
+  if(!text) return;
+  if(TTS_OK){
+    try{
+      speechSynthesis.cancel();
+      var u = new SpeechSynthesisUtterance(text);
+      var accent = state.settings.accent;
+      u.lang = accent; u.rate = 0.85;
+      var vs = speechSynthesis.getVoices()||[];
+      var v = null;
+      for(var i=0;i<vs.length;i++){ if(vs[i].lang===accent){ v=vs[i]; break; } }
+      if(!v) for(var j=0;j<vs.length;j++){ if(/^en/i.test(vs[j].lang)){ v=vs[j]; break; } }
+      if(v) u.voice = v;
+      var started = false;
+      u.onstart = function(){ started = true; };
+      speechSynthesis.speak(u);
+      // 没装英文语音时 speak 不报错也不出声，等不到开始事件就换在线音频
+      setTimeout(function(){
+        if(started) return;
+        if(speechSynthesis.speaking || speechSynthesis.pending) return;
+        if(!speakOnline(text)) warnNoSpeech();
+      }, 1200);
+      return;
+    }catch(e){}
+  }
+  if(!speakOnline(text)) warnNoSpeech();
 }
 
 // ── 中文释义判分 ─────────────────────────────────────────
@@ -933,8 +1009,19 @@ function stripPos(s){
   return x.replace(/[\s（）()【】\[\]，,。、·•\/]/g,'').trim();
 }
 function meaningItems(m){
-  return String(m==null?'':m).replace(/[①-⑥]/g,'；').split(/[；;]/)
-    .map(stripPos).filter(function(x){ return x.length>0; });
+  // 词性标记本身也是义项分隔符："a.迟的 ad.迟，晚" 应拆成 迟的 / 迟 / 晚，
+  // 否则用户答"迟到"会因为整串太长被判错。
+  var POS = '(?:n|v|vt|vi|adj|adv|a|ad|art|prep|conj|pron|int|num|aux)\\.';
+  var s = String(m==null?'':m).replace(/[①-⑥]/g,'；');
+  s = s.replace(new RegExp('(^|[\\s；;，,])((?:'+POS+')+)','g'), '$1\u0001');
+  var out = [];
+  s.split(/[\u0001；;]/).forEach(function(seg){
+    seg.split(/[，,、\/]/).forEach(function(x){
+      x = stripPos(x).replace(/^[的地得]+/,'');
+      if(x) out.push(x);
+    });
+  });
+  return out;
 }
 function normInput(s){
   return String(s==null?'':s).replace(/[\s（）()【】\[\]；;，,。、·•\/]/g,'').trim();
@@ -951,8 +1038,27 @@ function editDist(a,b){
   }
   return prev[B.length];
 }
+// 比较前去掉没有实际意义的虚词，"完全的"和"完全地"应当视为同一个答案；
+// "其它/其他"是同一个词的两种写法，归一到一种
+function stripMod(s){ return String(s==null?'':s).replace(/[的地得了着]/g,'').replace(/其它/g,'其他'); }
+// 反义字只差一个字的，判为完全不匹配：内部/外部、前一/后一 这类不能算"接近"
+function antonymClash(a,b){
+  var PAIRS = {'内':'外','外':'内','上':'下','下':'上','前':'后','后':'前','大':'小','小':'大',
+               '对':'错','错':'对','真':'假','假':'真','高':'低','低':'高','长':'短','短':'长',
+               '多':'少','少':'多','新':'旧','旧':'新','早':'晚','晚':'早','进':'退','退':'进',
+               '开':'关','关':'开','加':'减','减':'加','来':'去','去':'来','买':'卖','卖':'买'};
+  var A = Array.from(a), B = Array.from(b);
+  if(A.length !== B.length || A.length < 2) return false;
+  var diff = 0, pa = '', pb = '';
+  for(var i=0;i<A.length;i++){
+    if(A[i] !== B[i]){ diff++; pa = A[i]; pb = B[i]; if(diff > 1) return false; }
+  }
+  return diff === 1 && PAIRS[pa] === pb;
+}
 function similarity(a,b){
+  a = stripMod(a); b = stripMod(b);
   if(!a||!b) return 0;
+  if(antonymClash(a,b)) return 0;
   if(a===b) return 1;
   if(a.indexOf(b)>=0 || b.indexOf(a)>=0){
     var s=Math.min(a.length,b.length), l=Math.max(a.length,b.length);
@@ -960,22 +1066,30 @@ function similarity(a,b){
   }
   return Math.max(0, 1 - editDist(a,b)/Math.max(a.length,b.length));
 }
-// 返回 {g:1|2|3, verdict, matched}，g 直接喂给 FSRS
-function judge(input, meaning){
-  var u = normInput(input);
-  if(!u) return {g:1, verdict:'wrong', score:0, matched:''};
-  var items = meaningItems(meaning), best = 0, matched = '';
+// 返回 {g:1|2|3, verdict, matched, alt}，g 直接喂给 FSRS
+// alt 是词典里有、但主释义没写的常见义项，答对了也认（不算错）
+function judge(input, meaning, alt){
+  var parts = String(input==null?'':input)
+    .split(/[\s，,、\/；;]+/).map(normInput)
+    .filter(function(x){ return x; });
+  if(!parts.length) return {g:1, verdict:'wrong', score:0, matched:'', alt:''};
+  var items = meaningItems(meaning), best = 0, matched = '', altHit = '';
   for(var i=0;i<items.length;i++){
-    var s = similarity(u, items[i]);
-    if(s > best){ best = s; matched = items[i]; }
+    for(var p=0;p<parts.length;p++){
+      var s = similarity(parts[p], items[i]);
+      if(s > best){ best = s; matched = items[i]; }
+    }
   }
-  var full = stripPos(meaning);
-  if(full && full !== matched){
-    var sf = similarity(u, full);
-    if(sf > best){ best = sf; matched = full; }
+  if(alt && alt.length){
+    for(var k=0;k<alt.length;k++){
+      for(var q=0;q<parts.length;q++){
+        var sa = similarity(parts[q], alt[k]);
+        if(sa > best){ best = sa; matched = alt[k]; altHit = alt[k]; }
+      }
+    }
   }
   var g = best >= 0.62 ? 3 : best >= 0.42 ? 2 : 1;
-  return { g:g, verdict: g===3?'right' : g===2?'near' : 'wrong', score:best, matched:matched };
+  return { g:g, verdict: g===3?'right' : g===2?'near' : 'wrong', score:best, matched:matched, alt:altHit };
 }
 
 // ── 渲染 ─────────────────────────────────────────────────
@@ -990,6 +1104,8 @@ function preview(g){
 }
 function stage(){
   var el = document.getElementById('stage');
+  var dock = document.getElementById('dock');
+  dock.innerHTML = ''; dock.classList.remove('show');
   if(!current){
     var log = todayLog();
     el.innerHTML = '<div class="done"><div class="big">✓</div><div class="title">今天的词过完了</div>'
@@ -1014,6 +1130,7 @@ function stage(){
           + '<div id="actionArea"></div>'
           + '</div>';
     el.innerHTML = html + '</div>';
+    el.scrollTop = 0;
     updateActionArea();
     var inp = document.getElementById('typeInput');
     if(inp) inp.focus();
@@ -1022,25 +1139,36 @@ function stage(){
 
   // 判分/选择后的反馈
   var v = feedback.verdict;
-  var vtext = v==='right' ? '✓ 对上了' : v==='near' ? '≈ 接近'
+  var vtext = (v==='right' && feedback.altHit) ? '✓ 对上了（这个词的另一个义项）'
+            : v==='right' ? '✓ 对上了' : v==='near' ? '≈ 接近'
             : v==='chosen' ? '已记：'+['','不认识','模糊','认识'][feedback.g]
             : '✗ 没对上';
+  var altLine = (c.alt && c.alt.length)
+        ? '<div class="line"><span class="k">另有</span><span class="v">'+esc(c.alt.join('、'))+'</span></div>'
+        : '';
+  // 判定放在最上面：手机上卡片比屏幕长，放底部要滚动才看得到对错
+  html += '<div class="verdict '+(v==='chosen'?['','wrong','near','right'][feedback.g]:v)+'">'+vtext+'</div>';
   html += '<div class="compare">'
         + (feedback.input ? '<div class="line"><span class="k">你写的</span><span class="v">'+esc(feedback.input)+'</span></div>' : '')
         + '<div class="line"><span class="k">标准</span><span class="v">'+esc(feedback.expected)+'</span></div>'
+        + altLine
         + (feedback.matched && v!=='right' && v!=='chosen'
            ? '<div class="line"><span class="k">命中</span><span class="v">'+esc(feedback.matched)+'</span></div>' : '')
         + '</div>'
         + renderExamples(c.w)
         + renderRef(c)
         + (c.tip ? '<div class="note-box"><span class="nt">书中助记</span>'+esc(c.tip)+'</div>' : '')
-        + (c.note ? '<div class="note-box"><span class="nt">我的助记</span>'+esc(c.note)+'</div>' : '')
-        + '<div class="verdict '+(v==='chosen'?['','wrong','near','right'][feedback.g]:v)+'">'+vtext+'</div>'
-        + '<div class="fbops">'
+        + (c.note ? '<div class="note-box"><span class="nt">我的助记</span>'+esc(c.note)+'</div>' : '');
+  el.innerHTML = html + '</div>';
+  // 判定在最上面，滚动位置归零才能一眼看到对错（键盘收起会带动滚动，再补一次）
+  el.scrollTop = 0;
+  requestAnimationFrame(function(){ el.scrollTop = 0; });
+  // 操作栏单独占一条，不盖住卡片内容；长卡片滚动时也始终在屏幕内
+  dock.innerHTML = '<div class="fbops">'
         + '<button class="btn-main" data-action="confirm">下一词 <kbd>↵</kbd></button>'
         + (v==='right' || v==='chosen' ? '' : '<button class="btn-alt" data-action="forceGood">算认识</button>')
         + '</div>';
-  el.innerHTML = html + '</div>';
+  dock.classList.add('show');
 }
 // 牛津高阶参考释义（精简词条，繁体原文已转简体；不覆盖主释义）
 var POS_CN = {noun:'n.',verb:'v.',adjective:'adj.',adverb:'ad.',exclamation:'int.',
@@ -1764,10 +1892,11 @@ function bootDone(status){
   var boot=document.getElementById('boot');
   if(boot) boot.classList.add('hidden');
   if(!status.books) toast('词库未就绪，正在用内置四级词表 · 可在设置里重试');
-  else if(status.source && status.source!=='本地缓存'){
+  else if(/^(https?:\/\/|\.\/|\/)/.test(status.source||'')){
     var tag = status.source.indexOf('gitee')>=0 ? 'Gitee' : (status.source.indexOf('jsdelivr')>=0 ? 'CDN' : 'GitHub');
     toast('词库已更新（'+tag+'）');
   }
+  if(!storageOK) warnNoStorage();
   if(!document.getElementById('panel').classList.contains('hidden')) renderSheet();
 }
 if('speechSynthesis' in window){ try{ speechSynthesis.getVoices(); }catch(e){} }

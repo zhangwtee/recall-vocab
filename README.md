@@ -9,8 +9,8 @@
 ## 直接使用的三种方式
 
 1. **本地**：下载 `index.html`，双击用浏览器打开。首次需联网取词库，之后缓存到本地，断网也能背。
-2. **手机**：把整个仓库部署到任意静态托管（GitHub Pages / Gitee Pages / Cloudflare Pages 均可），手机浏览器打开后，从菜单选「添加到主屏幕」，全屏使用，跟 App 一样。
-3. **只带一个 HTML 文件**：`index.html` 本身不含词库。首次打开会自动从下面的源取词库并缓存，取到后就不必再联网。
+2. **手机**：把整个仓库部署到任意静态托管（GitHub Pages / Cloudflare Pages / EdgeOne Pages 均可），手机浏览器打开后，从菜单选「添加到主屏幕」，全屏使用，跟 App 一样。
+3. **单文件版（最省事）**：`node build-single.js` 生成 `memo.html`，词池与例句全部内联，一个文件约 5.4 MB，**完全不联网**。发到手机上用浏览器打开即可，不需要部署，也不需要配置。
 
 ## 词库源
 
@@ -33,25 +33,31 @@ https://gitee.com/你的账号/你的仓库/raw/main/data
 ## 重新构建
 
 ```bash
-node build-app.js
+node build-app.js      # 生成 index.html + data/
+node build-single.js   # 生成完全离线的单文件版 memo.html
 ```
 
-把 `fsrs.js`、`words.js`、`loader.js` 注入 `app-template.html` 生成 `index.html`，并把 `books.js`、`examples.js` 复制到 `data/`。词库数据由 `build-books.js` 和 `build-examples.js` 从原始词表生成。
+`build-app.js` 把 `fsrs.js`、`words.js`、`loader.js` 注入 `app-template.html` 生成 `index.html`，并把 `books.js`、`examples.js` 复制到 `data/`。词库数据由 `build-books.js` 和 `build-examples.js` 从原始词表生成。
+
+`build-single.js` 在此之上再内联 `books.js`、`examples.js`，并把加载器替换为直接返回内置词库的桩，因此产物不发起任何网络请求。`test-single.mjs` 用拦截全部域名解析的方式验证它在断网下可用。
 
 ## 目录说明
 
 - `index.html` — 成品，可直接双击
+- `memo.html` — 单文件离线版（构建产物，不随仓库提交）
 - `data/` — 词库文件，部署时必须与 index.html 同目录
 - `app-template.html` — 界面与逻辑源码
+- `build-app.js` / `build-single.js` — 分别生成 `index.html` 与 `memo.html`
 - `loader.js` — 词库加载器（多源切换、IndexedDB 缓存、离线回退）
 - `fsrs.js` — FSRS-5 调度实现
 - `words.js` / `books.js` / `examples.js` — 词表、词书分类、例句数据
 - `liuxiaoyan.js` / `build-liuxiaoyan.js` — 刘晓艳四级核心词的解析结果和生成脚本
 - `extract-official.py` — 从官方 2016 大纲 PDF 提取带 ★ 词表，拆分四六级
 - `raw/official-cet4.txt` / `raw/official-cet6.txt` — 官方词形表（供构建复用，随仓库提交）
+- `raw/sense-extra.json` — 人工补充的常见义项，词典漏收时使用（随仓库提交）
 - `audit-data.js` — 词库数据结构体检（可重复运行，不改动数据）
 - `audit-meaning.js` — 释义溯源审计：核对主释义是否来自可信来源、哨兵词是否正确、有无占位或噪声
-- `test-*.mjs` — 端到端测试（Edge 无头浏览器 + CDP），其中 `test-meaning-e2e.mjs` 验证词库释义与卡片显示、判分一致，`test-official.mjs` 验证官方词书可选、可出题
+- `test-*.mjs` — 端到端测试（Edge 无头浏览器 + CDP），其中 `test-meaning-e2e.mjs` 验证词库释义与卡片显示、判分一致，`test-official.mjs` 验证官方词书可选、可出题，`test-single.mjs` 在断网（拦截全部域名解析）下验证单文件版可用且进度能存，`test-tts.mjs` 验证系统语音不出声时退回在线音频、失败提示只弹一次，`test-layout.mjs` 在 360/390/414 三种手机宽度下验证标签不折行、判定条与对比框不粘连、两个操作按钮之间留有间隙且同高、操作栏不压住底部统计
 
 ## 官方四六级大纲词（2016 修订版）
 
@@ -79,6 +85,18 @@ node build-app.js
 多来源合并时按可信度取用，不按释义长度：四级/六级/中高考等考试词书优先，英专/GRE/TOEFL 次之，COCA 词典爬虫数据最后。这样可避免词书里正确的简洁释义被其他来源里更长但带 OCR 错字、排版错位或不相关义项的文本覆盖。COCA 释义中的人名、地名、音译片段与领域标记在入库前已剔除；查不到释义的词不再塞「大纲词」占位，而是从词书中剔除。
 
 部分词条另附「牛津高阶参考」——来自 OALD8 精简数据，原文繁体已转简体，只在揭晓页和单词档案中作参考，不覆盖主释义。该数据只覆盖词池中的一部分词。
+
+考试词书的释义偏简，常只列一两个义项。为了不让用户答对却被判错，`build-books.js` 会从 COCA 词典义项里挑出主释义没有、但确实常见的义项，存进 `alt` 字段。`alt` 只参与判分，并在揭晓页以「另有」列出，不改动已审计的主释义。
+
+词典本身也会漏（`view` 只给「观察；视野；意见；风景」，没有最常用的「观点」），这类由 `raw/sense-extra.json` 人工补充。人工条目对该词整条覆盖词典结果，避免又把不相关的义项掺回来；同样要过「不与主释义汉字重合」的校验。
+
+## 判分与朗读
+
+输入的中文按词性和中英文标点切成独立义项再比对，所以「a.迟的 ad.迟，晚」拆成「迟的 / 迟 / 晚」，答「迟到」「晚」都算对；一次写多个义项时，任意一段命中即可。「的地得了着」这类虚词差异、以及「其它/其他」这类异体写法在比较前归一。
+
+判分阈值以上算对，中间区间算接近（按「模糊」计），其余不算。反义字只差一个字的（内部/外部、前一/后一）不会因为字形接近而被判为部分正确。
+
+朗读优先用系统语音引擎；引擎缺失、或没装英文语音导致调用后不出声，会退到在线词典音频（仅单词）；两者都不可用时提示一次，说明可以换浏览器，不会每次点击都弹同一个报错。
 
 ## 词序
 

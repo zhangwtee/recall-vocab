@@ -89,6 +89,26 @@ const counts = {
 };
 P('  字段覆盖：' + Object.entries(counts).map(([k,v])=>k+' '+v).join('，'));
 
+// 补充他义（alt）：只用于判分与"别的义项"提示，格式和去重必须严格
+const ALT_IGNORE = /[的地得了着]/g;
+const altBad = [], altDup = [];
+for(const e of pool){
+  if(e.alt == null) continue;
+  if(!Array.isArray(e.alt) || !e.alt.length || e.alt.length > 2){
+    altBad.push(e.w + ':' + JSON.stringify(e.alt)); continue;
+  }
+  const core = (e.m||'').replace(ALT_IGNORE,'');
+  for(const a of e.alt){
+    if(typeof a !== 'string' || !/^[\u4e00-\u9fa5]{2,4}$/.test(a)) altBad.push(e.w + ':' + a);
+    // 与主释义或同词其他 alt 不应有汉字重合（忽略虚词）
+    for(const ch of a.replace(ALT_IGNORE,'')) if(core.indexOf(ch) >= 0){ altDup.push(e.w + ':' + a); break; }
+  }
+}
+ok(!altBad.length, '补充他义格式合法（1-2 个、2-4 汉字）', altBad.slice(0,5).join(' | '));
+ok(!altDup.length, '补充他义不与主释义重合', altDup.slice(0,5).join(' | '));
+P('  补充他义：' + pool.filter(e=>e.alt).length + ' 词，共 ' +
+  pool.reduce((n,e)=>n+(e.alt?e.alt.length:0),0) + ' 条');
+
 // ── 4. 词书结构 ───────────────────────────────────────────
 section('4. 词书结构');
 ok(books.length === 26, '词书数量', books.length + ' 本');

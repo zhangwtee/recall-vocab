@@ -461,6 +461,75 @@ for (const [w, key] of Object.entries(SENSE_FIRST)){
 }
 console.log('常用义前置 '+senseFixed+' 词');
 
+// ── 词典义项补充（alt）────────────────────────────────────
+// 考试词表释义偏简：field 只写"n.田野；田；运动场"，用户答"领域"其实是对的，却会被判错。
+// 从词典里挑出与主释义不重叠的常见义项存进 alt：判分时认可，揭晓页标为"别的义项"。
+// 主释义保持不动，避免自动改写引入新错误。
+function parseDictSenses(){
+  const txt = fs.readFileSync('raw/COCA_with_translation.txt','utf8');
+  const map = new Map(); let cur = null, rank = 0;
+  const flush = () => { if (cur && !map.has(cur.w)) { cur.rank = rank++; map.set(cur.w, cur); } cur = null; };
+  for (const ln of txt.split(/\r?\n/)){
+    const s = ln.trim();
+    if (s.startsWith('————')) { flush(); continue; }
+    if (!s) continue;
+    if (/^[A-Za-z][A-Za-z .'-]*$/.test(s) && s.length < 30 &&
+        !/^(vt|vi|n|v|a|ad|adv|conj|prep|pron|art|int|num)\./.test(s)){
+      flush(); cur = { w: s.toLowerCase(), blocks: [] };
+    } else if (cur) cur.blocks.push(s);
+  }
+  flush();
+  const POS_SPLIT = /((?:n|v|vt|vi|adj|a|ad|adv|art|prep|conj|pron|int|num)\.\s*)/;
+  for (const it of map.values()){
+    it.words = [];
+    for (const raw of it.blocks.slice(0, 3)){
+      const parts = raw.split(POS_SPLIT);
+      for (let i = 1; i < parts.length; i += 2){
+        const body = (parts[i+1] || '').replace(/\[[^\]]{1,12}\]/g,'');
+        if (/人名|地名|音译|姓氏/.test(body)) continue;
+        for (const w of body.split(/[；;，,、\/]/)){
+          const t = w.trim();
+          if (!/^[\u4e00-\u9fa5]{2,4}$/.test(t)) continue;
+          if (it.words.indexOf(t) < 0) it.words.push(t);
+        }
+      }
+    }
+  }
+  return map;
+}
+// 比对重合时忽略"的/地/得/了/着"这类虚词，否则"主要的"会被"较大的"里的"的"挡住
+const ALT_IGNORE = /[的地得了着]/g;
+const DICT = parseDictSenses();
+// 词典本身也会漏义项（view 只给"观察；视野；意见；风景"，没有"观点"），
+// 这里放人工补充：有就整条覆盖，不再混入词典结果，避免又掺回不相干的义项。
+const SENSE_EXTRA = fs.existsSync('raw/sense-extra.json')
+  ? JSON.parse(fs.readFileSync('raw/sense-extra.json', 'utf8')) : {};
+let altAdded = 0, altManual = 0;
+const usedChars = m => new Set(String(m || '').replace(ALT_IGNORE,'').match(/[\u4e00-\u9fa5]/g) || []);
+for (const e of POOL.values()){
+  const manual = Array.isArray(SENSE_EXTRA[e.w]) ? SENSE_EXTRA[e.w] : null;
+  const d = DICT.get(e.w);
+  if (!manual && (!d || !d.words.length || d.rank > 6000)) continue;
+  const used = usedChars(e.m);
+  const out = [];
+  const take = w => {
+    if (out.length >= 2) return;
+    const t = String(w).trim();
+    if (!/^[\u4e00-\u9fa5]{2,4}$/.test(t)) return;
+    for (const ch of t.replace(ALT_IGNORE,'')) if (used.has(ch)) return;
+    out.push(t);
+    for (const ch of t.replace(ALT_IGNORE,'')) used.add(ch);
+  };
+  if (manual){
+    manual.forEach(take);
+    if (out.length){ e.alt = out; altAdded++; altManual++; }
+    continue;
+  }
+  d.words.forEach(take);
+  if (out.length){ e.alt = out; altAdded++; }
+}
+console.log('补充他义 '+altAdded+' 词（其中人工 '+altManual+' 词）');
+
 if (TRACE) fs.writeFileSync('trace-meaning.json', JSON.stringify({cands:TRACE_LOG, chosen:Object.fromEntries(SRC_OF)}));
 // 词书内的词按 COCA 词频升序排列：常用词先学。
 // the/be/and 这类超基础功能词不必背，挪到末尾；无词频的排最后按字母序兜底。

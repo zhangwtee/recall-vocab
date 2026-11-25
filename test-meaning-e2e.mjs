@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const html = fs.readFileSync('index.html','utf8');
-const names = ['stripPos','meaningItems','normInput','editDist','similarity','judge'];
+const names = ['stripPos','meaningItems','normInput','editDist','stripMod','antonymClash','similarity','judge'];
 const src = names.map(n => {
   const re = new RegExp('function\\s+' + n + '\\s*\\([^)]*\\)\\s*\\{[\\s\\S]*?\\n\\}', 'm');
   const m = html.match(re);
