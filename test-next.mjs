@@ -7,6 +7,10 @@ function cmd(m,x={}){return new Promise((res,rej)=>{const id=++seq,t=setTimeout(
 async function ev(e){const r=await cmd('Runtime.evaluate',{expression:e,returnByValue:true});if(r.exceptionDetails)throw new Error(r.exceptionDetails.exception?.description||r.exceptionDetails.text);return r.result.value}
 let pass=0,fail=0;function ck(n,c,x){if(c){pass++;console.log('  ok   '+n)}else{fail++;console.log('  FAIL '+n+(x!==undefined?'  → '+JSON.stringify(x):''))}}
 const LS='nixiang.memo.v1';
+function todayKeyJS(){
+  const d=new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
 function mk(over={}){
   return Object.assign({version:1,
     settings:{dailyNew:1,retention:0.9,accent:'en-US',autoSpeak:false,autoSpeakShow:false,
@@ -142,6 +146,25 @@ try{
     document.querySelector('[data-action="confirm"]').click()`);await sleep(180);
   s=await ev(`JSON.parse(localStorage.getItem('${LS}')).mistakes.length`);
   ck('连续答对两次移出错义清单',s===0,s);
+
+  console.log('\n[5] 新词进度不混入复习');
+  const k5=todayKeyJS();
+  const st5=mk({customPool:[],
+    settings:Object.assign(mk().settings,{customOn:false,dailyNew:3}),
+    cards:{reviewword:{w:'reviewword',p:'',m:'n.复习词',alt:null,state:'review',
+      stability:5,difficulty:5,reps:2,lapses:0,dueAt:Date.now()-2000,
+      lastReview:Date.now()-86400000,enabled:true,addedAt:Date.now()-86400000,note:''}},
+    dailyLog:{[k5]:{neu:3,intro:3,rev:0,again:0,hard:0,good:3,plan:4,planNew:3,planRev:1}}});
+  await load(st5);
+  s=await ev(`({pill:document.getElementById('pill').textContent,
+    title:document.getElementById('pill').title,
+    bar:document.getElementById('barFill').style.width})`);
+  ck('分母只算新词不算复习',/新词 3 \/ 3/.test(s.pill),s);
+  ck('标题里复习单独说明',/复习 0 个/.test(s.title)&&/计划 1 个/.test(s.title),s.title);
+  ck('进度条按新词算满',s.bar==='100%',s.bar);
+  await ev(`document.getElementById('pill').click()`);await sleep(160);
+  s=await ev(`document.getElementById('planBreak').textContent`);
+  ck('计划面板说明两组分开计',/不含复习/.test(s)&&/两组分开计/.test(s),s);
 
   console.log('\n总计 '+pass+' 通过 / '+fail+' 失败');
   if(fail) process.exitCode=1;

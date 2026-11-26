@@ -399,7 +399,7 @@ kbd{background:var(--card2);border:1px solid var(--line);border-radius:4px;paddi
   <header>
     <button class="brand book-trigger" data-action="openBookPicker" title="点击切换词书"><b id="bookLabel">四级</b><span class="brand-arrow">▾</span><span class="brand-sub">主动回忆</span></button>
     <div class="spacer"></div>
-    <button class="progress-pill plan-trigger" id="pill" data-action="openPlan" title="点击设置每日新词">今日 0 / 0 <span class="pill-arrow">▾</span></button>
+    <button class="progress-pill plan-trigger" id="pill" data-action="openPlan" title="点击设置每日新词">新词 0 / 0 <span class="pill-arrow">▾</span></button>
     <button class="icon-btn" data-action="settings" title="设置" aria-label="设置"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2a2 2 0 1 1-4 0v-.2a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1h-.2a2 2 0 1 1 0-4h.2a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.6v-.2a2 2 0 1 1 4 0v.2a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.6 1h.2a2 2 0 1 1 0 4h-.2a1.7 1.7 0 0 0-1.6 1z"/></svg></button>
   </header>
   <div class="bar"><i id="barFill"></i></div>
@@ -1650,12 +1650,13 @@ function updateActionArea(){
 function header(){
   document.getElementById('bookLabel').textContent = bookName();
   var log = todayLog();
-  var done = (log.neu||0)+(log.rev||0);
-  var planned = Math.max(log.plan||0, done);
-  document.getElementById('pill').textContent = '今日 '+done+' / '+planned;
-  document.getElementById('pill').title = '今日计划 '+planned+' 个：新词 '+(log.planNew||0)
-    +' · 复习 '+(log.planRev||0)+'；已完成 '+done+' 个';
-  document.getElementById('barFill').style.width = (planned? Math.min(100,done/planned*100):0)+'%';
+  var neuDone = log.neu||0;
+  var neuPlan = Math.max(log.planNew||0, neuDone);
+  var revDone = log.rev||0;
+  document.getElementById('pill').textContent = '新词 '+neuDone+' / '+neuPlan;
+  document.getElementById('pill').title = '今日新词 '+neuDone+' / '+neuPlan+' 个；另有复习 '
+    +revDone+' 个（计划 '+(log.planRev||0)+' 个）。点开可调整每日新词。';
+  document.getElementById('barFill').style.width = (neuPlan? Math.min(100,neuDone/neuPlan*100):0)+'%';
   document.getElementById('statNew').textContent = '新词 '+log.neu;
   document.getElementById('statReview').textContent = '复习 '+log.rev;
   var judged = log.again+log.hard+log.good;
@@ -1743,7 +1744,7 @@ function renderSheet(){
   document.querySelectorAll('.tab').forEach(function(t){ t.classList.toggle('on', t.dataset.tab===tab); });
   if(tab==='general'){
     el.innerHTML =
-      '<div class="row"><div><div class="label">每日新词</div><div class="sub">1~500 任意数字，也可点顶栏「今日进度」快速改</div></div>'
+      '<div class="row"><div><div class="label">每日新词</div><div class="sub">每天引入的新词数，不含复习；1~500，也可点顶栏「新词进度」快速改</div></div>'
       + '<div style="display:flex;gap:8px;align-items:center;margin-top:8px">'
       + '<input type="number" id="setDailyNew" min="1" max="500" value="'+s.dailyNew+'" '
       + 'style="width:90px;padding:9px 10px;text-align:center;background:var(--card);'
@@ -2370,8 +2371,9 @@ function openPlan(){
   document.getElementById('planNew').textContent = log.neu||0;
   document.getElementById('planDue').textContent = due;
   document.getElementById('planLearned').textContent = Object.keys(state.cards).length;
-  document.getElementById('planBreak').textContent = '今日共 '+(log.plan||0)+' 个：计划新词 '+(log.planNew||0)
-    +' · 到期待复习 '+(log.planRev||0)+'；已背新词 '+(log.neu||0)+' · 已复习 '+(log.rev||0)+'。';
+  document.getElementById('planBreak').textContent = '新词：已背 '+(log.neu||0)+' / 今日计划 '
+    +(Math.max(log.planNew||0, log.neu||0))+'（不含复习）；复习：已完成 '+(log.rev||0)
+    +' / 今日到期 '+(log.planRev||0)+'。两组分开计，互不影响。';
   document.getElementById('planPanel').classList.remove('hidden');
   syncQuick();
 }

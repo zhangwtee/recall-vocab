@@ -55,24 +55,24 @@ try{
   await reload();
   s=await ev(`(function(){var d=JSON.parse(localStorage.getItem('nixiang.memo.v1')).dailyLog;
     return {pill:document.getElementById('pill').textContent,intro:d[Object.keys(d)[0]].intro}})()`);
-  ck('首次打开按计划显示 0 / 3',/今日 0 \/ 3/.test(s.pill)&&s.intro===3,s);
+  ck('首次打开按计划显示新词 0 / 3',/新词 0 \/ 3/.test(s.pill)&&s.intro===3,s);
   s=await ev(`({title:document.getElementById('pill').title,
     d:JSON.parse(localStorage.getItem('nixiang.memo.v1')).dailyLog})`);
   s.plan=s.d[Object.keys(s.d)[0]].planNew;
-  ck('进度条说明区分新词和复习',/新词 3 · 复习 0/.test(s.title)&&s.plan===3,s);
+  ck('顶栏说明区分新词和复习',/今日新词 0 \/ 3/.test(s.title)&&/复习/.test(s.title)&&s.plan===3,s);
   await ev(`document.querySelector('[data-action="quickRate"][data-g="3"]').click();
     document.querySelector('[data-action="confirm"]').click()`);await sleep(220);
   s=await ev(`document.getElementById('pill').textContent`);
-  ck('背完一个显示 1 / 3',/今日 1 \/ 3/.test(s),s);
+  ck('背完一个显示新词 1 / 3',/新词 1 \/ 3/.test(s),s);
   await reload();
   s=await ev(`(function(){var d=JSON.parse(localStorage.getItem('nixiang.memo.v1')).dailyLog;
     return {pill:document.getElementById('pill').textContent,plan:d[Object.keys(d)[0]].plan}})()`);
-  ck('重开后分母仍是 3',/今日 1 \/ 3/.test(s.pill)&&s.plan===3,s);
+  ck('重开后新词分母仍是 3',/新词 1 \/ 3/.test(s.pill)&&s.plan===3,s);
   await ev(`document.getElementById('pill').click()`);await sleep(150);
   await ev(`(()=>{const i=document.getElementById('planInput');i.value='5';i.dispatchEvent(new Event('input',{bubbles:true}))})()`);
   await ev(`document.querySelector('[data-action="savePlan"]').click()`);await sleep(250);
   s=await ev(`document.getElementById('pill').textContent`);
-  ck('加量后分母变成 5',/今日 1 \/ 5/.test(s),s);
+  ck('加量后新词分母变成 5',/新词 1 \/ 5/.test(s),s);
 
   console.log('\n[4] 真机反馈文案与词库字符');
   s=await ev(`window.WORD_POOL.filter(function(e){return /[\\uE000-\\uF8FF]/.test(e.m||'')}).length`);
