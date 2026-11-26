@@ -27,7 +27,7 @@ body{display:flex;justify-content:center}
 
 /* 顶栏 */
 header{flex:none;display:flex;align-items:center;gap:12px;padding:16px 20px 8px}
-.brand{font-size:15px;font-weight:600;letter-spacing:.5px;color:var(--dim)}
+.brand{font-size:15px;font-weight:500;letter-spacing:.5px;color:var(--dim)}
 .brand b{color:var(--fg)}
 .book-trigger{background:none;border:0;padding:4px 8px 4px 0;cursor:pointer;font:inherit;
   display:inline-flex;align-items:center;gap:6px;border-radius:8px;transition:background .15s}
@@ -41,7 +41,7 @@ header{flex:none;display:flex;align-items:center;gap:12px;padding:16px 20px 8px}
 #bookPicker.hidden,#planPanel.hidden{display:none}
 .bp-card{width:92%;max-width:460px;max-height:84vh;overflow:hidden;background:var(--bg);
   border:1px solid var(--line);border-radius:16px;display:flex;flex-direction:column;
-  box-shadow:0 12px 40px rgba(0,0,0,.3)}
+  box-shadow:0 8px 24px rgba(0,0,0,.24)}
 .bp-head{padding:16px 18px 12px;border-bottom:1px solid var(--line);flex:none}
 .bp-head h2{margin:0 0 3px;font-size:17px}
 .bp-head p{margin:0;font-size:12px;color:var(--dim2)}
@@ -54,7 +54,7 @@ header{flex:none;display:flex;align-items:center;gap:12px;padding:16px 20px 8px}
 #wordSetPanel.hidden{display:none}
 /* 今日计划面板内的控件 */
 .plan-big{display:flex;align-items:center;justify-content:center;gap:12px;margin:6px 0 14px}
-.plan-big input{width:96px;padding:12px;text-align:center;font-size:28px;font-weight:650;
+.plan-big input{width:96px;padding:12px;text-align:center;font-size:28px;font-weight:500;
   background:var(--card);border:1px solid var(--line);border-radius:12px;color:var(--fg)}
 .plan-big span{font-size:14px;color:var(--dim)}
 .plan-quick{display:flex;gap:8px;justify-content:center;margin-bottom:16px}
@@ -64,18 +64,23 @@ header{flex:none;display:flex;align-items:center;gap:12px;padding:16px 20px 8px}
 .plan-stat{display:flex;justify-content:space-around;padding:12px 0;margin-bottom:4px;
   border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
 .plan-stat div{text-align:center}
-.plan-stat .n{font-size:20px;font-weight:650}
+.plan-stat .n{font-size:20px;font-weight:500;font-variant-numeric:tabular-nums}
 .plan-stat .t{font-size:11px;color:var(--dim2);margin-top:2px}
 .plan-extra{display:flex;gap:8px;margin-top:12px}
 .plan-extra button{flex:1;padding:10px 4px;background:var(--card);border:1px solid var(--line);
   border-radius:9px;color:var(--dim);font-size:12px;cursor:pointer;white-space:nowrap}
 .plan-extra button:active{background:var(--card2)}
-.plan-save{width:100%;padding:12px;background:var(--blue);border:0;border-radius:9px;
+.plan-save{width:100%;padding:12px;background:var(--blue);border:0;border-radius:8px;
   color:#fff;font-size:14px;font-weight:600;cursor:pointer;margin-top:4px}
 .spacer{flex:1}
 .icon-btn{width:38px;height:38px;border:0;border-radius:10px;background:var(--card2);color:var(--dim);
   font-size:18px;cursor:pointer;display:grid;place-items:center}
 .icon-btn:active{background:var(--line)}
+.ico{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.5;
+  stroke-linecap:round;stroke-linejoin:round;display:block}
+.ex-speak .ico{width:14px;height:14px}
+.icon-btn:focus-visible,.book-trigger:focus-visible,.plan-trigger:focus-visible,
+button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 .progress-pill{font-size:12px;color:var(--dim);background:var(--card);border:1px solid var(--line);
   border-radius:20px;padding:6px 12px;white-space:nowrap}
 .plan-trigger{cursor:pointer;font-family:inherit;transition:border-color .15s,background .15s}
@@ -88,46 +93,44 @@ header{flex:none;display:flex;align-items:center;gap:12px;padding:16px 20px 8px}
 main{flex:1;min-height:0;display:flex;flex-direction:column;padding:12px 16px;
   overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
 .card{width:100%;max-width:520px;margin:auto;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
-  padding:32px 24px 24px;display:flex;flex-direction:column;align-items:center;
-  box-shadow:0 12px 40px rgba(0,0,0,.28)}
-.word{font-size:clamp(38px,10vw,60px);font-weight:650;letter-spacing:-1px;line-height:1.15;
-  text-align:center;word-break:break-word;margin-bottom:10px;cursor:pointer}
+  padding:32px 24px 24px;display:flex;flex-direction:column;align-items:center}
+.word{font-size:clamp(38px,10vw,60px);font-weight:500;letter-spacing:-1px;line-height:1.15;
+  text-align:center;word-break:break-word;margin-bottom:12px;cursor:pointer}
 .word:hover{color:var(--blue)}
 .spell-sub{font-size:12px;color:var(--dim2);text-align:center;margin-bottom:8px;letter-spacing:1px}
-.spell-prompt{font-size:clamp(22px,5.6vw,32px);font-weight:650;line-height:1.5;
+.spell-prompt{font-size:clamp(22px,5.6vw,32px);font-weight:500;line-height:1.5;
   text-align:center;word-break:break-word;margin-bottom:10px}
-.peek-mean{width:100%;text-align:center;font-size:19px;line-height:1.7;margin-bottom:10px}
-.peek-alt{width:100%;text-align:center;font-size:13px;color:var(--dim);line-height:1.6;margin-bottom:14px}
-.phonetic{display:flex;align-items:center;gap:10px;color:var(--dim);font-size:16px;min-height:26px}
+.peek-mean{width:100%;text-align:center;font-size:19px;line-height:1.7;margin-bottom:12px}
+.peek-alt{width:100%;text-align:center;font-size:13px;color:var(--dim);line-height:1.6;margin-bottom:12px}
+.phonetic{display:flex;align-items:center;gap:8px;color:var(--dim);font-size:16px;min-height:28px}
 .speak{border:0;background:var(--card2);color:var(--blue);width:36px;height:36px;border-radius:50%;
   font-size:16px;cursor:pointer;display:grid;place-items:center;flex:none}
-.speak:active{transform:scale(.92)}
-.example{margin-top:14px;color:var(--dim);font-size:14px;text-align:center;line-height:1.6;
-  font-style:italic;max-width:100%}
-.examples{margin:10px 0 12px}
+.speak:active{transform:scale(.97)}
+.example{margin-top:12px;color:var(--dim);font-size:14px;text-align:center;line-height:1.6;max-width:100%}
+.examples{margin:12px 0}
 .ex-title{flex:none;font-size:10px;line-height:1.5;color:var(--dim2);
   border:1px solid var(--line);border-radius:4px;padding:0 4px;margin-right:1px;letter-spacing:0}
-.ex-row{background:var(--card);border:1px solid var(--line);border-radius:10px;
-  padding:10px 12px;margin-bottom:7px}
+.ex-row{background:var(--card2);border:1px solid var(--line);border-radius:10px;
+  padding:12px;margin-bottom:8px}
 .ex-en{font-size:14px;line-height:1.5;display:flex;align-items:flex-start;gap:8px}
 .ex-en .ex-speak{margin-left:auto;flex:none}
 .ex-speak{background:none;border:0;color:var(--dim);font-size:13px;cursor:pointer;padding:2px 4px}
 .ex-speak:hover{color:var(--blue)}
-.ex-cn{font-size:12px;color:var(--dim);margin-top:5px;line-height:1.5}
-.divider{width:100%;height:1px;background:var(--line);margin:26px 0 22px}
+.ex-cn{font-size:12px;color:var(--dim);margin-top:4px;line-height:1.5}
+.divider{width:100%;height:1px;background:var(--line);margin:24px 0 20px}
 .hint{color:var(--dim2);font-size:13px;text-align:center;line-height:1.7;margin-bottom:20px}
-.reveal{width:100%;padding:16px;border:0;border-radius:12px;background:var(--blue);color:#0b1220;
-  font-size:16px;font-weight:650;cursor:pointer;transition:filter .15s,transform .1s}
-.reveal:hover{filter:brightness(1.08)}
-.reveal:active{transform:scale(.985)}
-.meaning{width:100%;text-align:center;font-size:19px;line-height:1.7;margin-bottom:26px;
+.reveal{width:100%;padding:16px;border:0;border-radius:10px;background:var(--blue);color:#0b1220;
+  font-size:16px;font-weight:600;cursor:pointer;transition:background .15s,transform .12s}
+.reveal:hover{background:#7db4ff}
+.reveal:active{transform:scale(.98)}
+.meaning{width:100%;text-align:center;font-size:19px;line-height:1.7;margin-bottom:24px;
   animation:fade .22s ease}
 @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
-.ratings{width:100%;display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
-.rate{padding:14px 4px 12px;border:1px solid var(--line);border-radius:12px;background:var(--card2);
-  color:var(--fg);font-size:14px;font-weight:600;cursor:pointer;display:flex;flex-direction:column;
-  align-items:center;gap:5px;transition:transform .1s,background .15s}
-.rate:active{transform:scale(.96)}
+.ratings{width:100%;display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.rate{padding:12px 4px;border:1px solid var(--line);border-radius:12px;background:var(--card2);
+  color:var(--fg);font-size:14px;font-weight:500;cursor:pointer;display:flex;flex-direction:column;
+  align-items:center;gap:4px;transition:background .15s,transform .12s}
+.rate:active{transform:scale(.98)}
 .rate small{font-size:11px;font-weight:400;color:var(--dim2)}
 .rate[data-g="1"]:active{background:rgba(248,113,113,.18)}
 .rate[data-g="2"]:active{background:rgba(251,191,36,.18)}
@@ -140,24 +143,24 @@ main{flex:1;min-height:0;display:flex;flex-direction:column;padding:12px 16px;
   background:transparent;color:var(--dim2);font-size:12px;cursor:pointer}
 .mode-switch button.on{background:var(--card2);color:var(--blue);border-color:var(--blue)}
 .typebox{width:100%}
-.type-input{width:100%;padding:15px 12px;background:var(--card2);border:1px solid var(--line);
-  border-radius:12px;color:var(--fg);font-size:17px;text-align:center;outline:none;
+.type-input{width:100%;padding:16px 12px;background:var(--card2);border:1px solid var(--line);
+  border-radius:10px;color:var(--fg);font-size:17px;text-align:center;outline:none;
   transition:border-color .15s}
 .type-input:focus{border-color:var(--blue)}
 .type-input::placeholder{color:var(--dim2)}
-.submit{width:100%;padding:14px;border:0;border-radius:12px;background:var(--blue);color:#0b1220;
-  font-size:16px;font-weight:650;cursor:pointer;margin-top:10px}
+.submit{width:100%;padding:14px;border:0;border-radius:10px;background:var(--blue);color:#0b1220;
+  font-size:16px;font-weight:600;cursor:pointer;margin-top:12px}
 .giveup{width:100%;padding:10px;border:0;background:transparent;color:var(--dim2);
   font-size:12px;cursor:pointer;margin-top:12px}
 .giveup:hover{color:var(--dim)}
 /* 判定条：单独一条带底色，不跟上面的分隔线、下面的对比框糊在一起 */
-.verdict{width:100%;text-align:center;font-size:15px;font-weight:650;line-height:1.45;
-  padding:9px 12px;border-radius:10px;margin:0 0 12px;background:var(--card2);color:var(--dim)}
+.verdict{width:100%;text-align:center;font-size:15px;font-weight:500;line-height:1.45;
+  padding:8px 12px;border-radius:8px;margin:0 0 12px;background:var(--card2);color:var(--dim)}
 .verdict.right{color:var(--green);background:rgba(74,222,128,.10)}
 .verdict.near{color:var(--yellow);background:rgba(251,191,36,.10)}
 .verdict.wrong{color:var(--red);background:rgba(248,113,113,.10)}
 .verdict.giveup{color:var(--dim)}
-.compare{width:100%;background:var(--card2);border-radius:10px;padding:12px 14px;margin-bottom:18px}
+.compare{width:100%;background:var(--card2);border-radius:8px;padding:12px 16px;margin-bottom:16px}
 .compare .line{display:flex;gap:10px;font-size:14px;line-height:1.65;padding:3px 0}
 .compare .line .k{color:var(--dim2);flex:0 0 3.6em;white-space:nowrap}
 .compare .line .v{color:var(--fg);word-break:break-all}
@@ -168,7 +171,7 @@ main{flex:1;min-height:0;display:flex;flex-direction:column;padding:12px 16px;
 .fbops .btn-main,.fbops .btn-alt,.fbops .btn-undo{-webkit-appearance:none;appearance:none;
   min-height:50px;border-radius:12px;cursor:pointer;margin:0}
 .fbops .btn-main{flex:1 1 auto;min-width:0;margin-right:12px;padding:10px 12px;border:0;
-  background:var(--blue);color:#0b1220;font-size:15px;font-weight:650;
+  background:var(--blue);color:#0b1220;font-size:15px;font-weight:600;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .fbops .btn-alt{flex:0 0 auto;padding:10px 18px;border:1px solid var(--line);
   background:transparent;color:var(--dim);font-size:13px;white-space:nowrap}
@@ -182,8 +185,8 @@ main{flex:1;min-height:0;display:flex;flex-direction:column;padding:12px 16px;
 }
 .done{text-align:center;color:var(--dim);line-height:2;margin:auto}
 .done .big{font-size:44px;margin-bottom:8px}
-.done .title{font-size:20px;color:var(--fg);font-weight:600;margin-bottom:16px}
-.done button{margin-top:22px;padding:12px 26px;border:1px solid var(--line);border-radius:10px;
+.done .title{font-size:20px;color:var(--fg);font-weight:500;margin-bottom:16px}
+.done button{margin-top:20px;padding:12px 24px;border:1px solid var(--line);border-radius:10px;
   background:var(--card2);color:var(--fg);cursor:pointer;font-size:14px}
 
 /* 底栏 */
@@ -225,13 +228,13 @@ textarea{width:100%;min-height:130px;background:var(--card);color:var(--fg);bord
 .wordcard{width:88%;max-width:400px;max-height:82vh;overflow-y:auto;background:var(--card);
   border:1px solid var(--line);border-radius:16px;padding:22px;animation:pop .18s ease}
 @keyframes pop{from{transform:scale(.96);opacity:.5}to{transform:none;opacity:1}}
-.wordcard .wc-word{font-size:30px;font-weight:650;text-align:center}
+.wordcard .wc-word{font-size:30px;font-weight:500;text-align:center}
 .wordcard .wc-ph{color:var(--dim);font-size:14px;text-align:center;margin:4px 0 14px}
 .wordcard .wc-mean{font-size:14px;line-height:1.7;text-align:center;padding:12px;
   background:var(--card2);border-radius:10px;margin-bottom:16px}
 .wc-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:9px;margin-bottom:16px}
 .wc-cell{background:var(--card2);border-radius:9px;padding:10px 12px}
-.wc-cell .n{font-size:17px;font-weight:600}
+.wc-cell .n{font-size:17px;font-weight:500;font-variant-numeric:tabular-nums}
 .wc-cell .t{font-size:10px;color:var(--dim2);margin-top:2px}
 .note-box{margin:0 0 14px;padding:10px 12px;background:rgba(110,168,254,.08);
   border:1px solid rgba(110,168,254,.25);border-radius:10px;font-size:13px;line-height:1.6}
@@ -301,18 +304,19 @@ textarea{width:100%;min-height:130px;background:var(--card);color:var(--fg);bord
 .wlist{display:flex;flex-direction:column;gap:8px}
 .witem{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:11px 13px}
 .witem .top{display:flex;align-items:baseline;gap:9px}
-.witem .w{font-size:16px;font-weight:600}
+.witem .w{font-size:16px;font-weight:500}
 .witem .st{font-size:11px;color:var(--blue);margin-left:auto;white-space:nowrap}
 .witem .m{font-size:12px;color:var(--dim);margin-top:5px;line-height:1.5}
 .witem .ops{display:flex;gap:8px;margin-top:9px}
 .witem .ops button{border:1px solid var(--line);background:var(--card2);color:var(--dim);
   border-radius:7px;padding:5px 10px;font-size:11px;cursor:pointer}
 .witem .ops button:hover{color:var(--fg)}
-.stat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:8px}
+.stat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:8px}
+.stat:first-child .n{font-size:28px}
 .stat{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;
   text-align:left;cursor:pointer;font-family:inherit}
 .stat:hover{border-color:var(--blue)}
-.stat .n{font-size:24px;font-weight:650}
+.stat .n{font-size:24px;font-weight:500;font-variant-numeric:tabular-nums}
 .stat .t{font-size:11px;color:var(--dim);margin-top:4px}
 .bar-row{display:flex;width:100%;align-items:center;gap:8px;margin:5px 0;font-size:11px;
   border:0;background:transparent;color:var(--fg);padding:2px 0;cursor:pointer;
@@ -387,7 +391,7 @@ kbd{background:var(--card2);border:1px solid var(--line);border-radius:4px;paddi
     <button class="brand book-trigger" data-action="openBookPicker" title="点击切换词书"><b id="bookLabel">四级</b><span class="brand-arrow">▾</span><span class="brand-sub">主动回忆</span></button>
     <div class="spacer"></div>
     <button class="progress-pill plan-trigger" id="pill" data-action="openPlan" title="点击设置每日新词">今日 0 / 0 <span class="pill-arrow">▾</span></button>
-    <button class="icon-btn" data-action="settings" title="设置">⚙</button>
+    <button class="icon-btn" data-action="settings" title="设置" aria-label="设置"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2a2 2 0 1 1-4 0v-.2a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1h-.2a2 2 0 1 1 0-4h.2a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.6v-.2a2 2 0 1 1 4 0v.2a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.6 1h.2a2 2 0 1 1 0 4h-.2a1.7 1.7 0 0 0-1.6 1z"/></svg></button>
   </header>
   <div class="bar"><i id="barFill"></i></div>
   <main id="stage"></main>
@@ -404,7 +408,7 @@ kbd{background:var(--card2);border:1px solid var(--line);border-radius:4px;paddi
     <div class="sheet-head">
       <h2>设置</h2>
       <div class="spacer"></div>
-      <button class="icon-btn" data-action="closePanel">✕</button>
+      <button class="icon-btn" data-action="closePanel" aria-label="关闭"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
     </div>
     <div class="tabs">
       <button class="tab on" data-tab="general">常规</button>
@@ -1371,7 +1375,9 @@ function stage(){
     el.innerHTML = '<div class="card">'
       + '<div class="word">'+esc(pc.w)+'</div>'
       + '<div class="phonetic">'+(pc.p?'<span>'+esc(pc.p)+'</span>':'<span></span>')
-      + '<button class="speak" data-action="speakText" data-text="'+esc(pc.w)+'" title="朗读">🔊</button></div>'
+      + '<button class="speak" data-action="speakText" data-text="'+esc(pc.w)+'" title="朗读" aria-label="朗读">'
+      + '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4V5z"/>'
+      + '<path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg></button></div>'
       + '<div class="divider"></div>'
       + '<div class="peek-mean">'+esc(pc.m||'')+'</div>'
       + (pc.alt && pc.alt.length ? '<div class="peek-alt">另有 '+esc(pc.alt.join('、'))+'</div>' : '')
@@ -1412,13 +1418,13 @@ function stage(){
       + '<div class="spell-prompt">'+esc(meaningItems(c.m).join(' / '))+'</div>'
     : '<div class="word" data-action="wordInfo" title="查看记忆档案">'+esc(c.w)+'</div>'
       + '<div class="phonetic">'+(ph?'<span>'+esc(ph)+'</span>':'<span></span>')
-      + '<button class="speak" data-action="speak" title="朗读">🔊</button></div>';
+      + '<button class="speak" data-action="speak" title="朗读" aria-label="朗读"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg></button></div>';
   var html = '<div class="card">' + head + '<div class="divider"></div>';
 
   if(!feedback){
     // 出词：写了就提交判分，没写就直接选档位
-    html += '<div class="hint">'+(spelling ? '根据上面的中文写出英文拼写<br>或者直接选下面的档位'
-                                          : '写出意思自动判<br>或者直接选下面的档位')+'</div>'
+    html += '<div class="hint">'+(spelling ? '看中文拼出英文，或直接选档位'
+                                          : '写出意思，或直接选档位')+'</div>'
           + '<div class="mode-switch">'
           + '<button data-action="setInputMode" data-mode="cn" class="'+(inputMode==='cn'?'on':'')+'">写中文</button>'
           + '<button data-action="setInputMode" data-mode="en" class="'+(inputMode==='en'?'on':'')+'">拼英文</button>'
@@ -1497,7 +1503,9 @@ function renderExamples(word, card){
       + '<div class="ex-en">'
       + (i===0 ? '<span class="ex-title">例句</span>' : '')
       + '<span>'+esc(ex[i][0])+'</span>'
-      + '<button class="ex-speak" data-action="speakText" data-text="'+esc(ex[i][0])+'" title="朗读">🔊</button></div>'
+      + '<button class="ex-speak" data-action="speakText" data-text="'+esc(ex[i][0])+'" title="朗读" aria-label="朗读">'
+      + '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4V5z"/>'
+      + '<path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg></button></div>'
       + '<div class="ex-cn">'+esc(ex[i][1])+'</div></div>';
   }
   return '<div class="examples">'+rows+'</div>';
@@ -2412,7 +2420,7 @@ document.addEventListener('click', function(e){
       document.getElementById('boot').classList.add('hidden');
       if(bookById(state.settings.bookId)===null && getBooks().length) state.settings.bookId='cet4';
       buildSession(); next(); renderSheet(); header();
-      toast(st.books ? ('词库已更新（'+dataSourceLabel()+'）') : '获取失败，仍用内置词表');
+      toast(st.books ? '词库已更新' : '获取失败，仍用内置词表');
     });
   }
   else if(a==='clearDataCache'){
@@ -2422,7 +2430,7 @@ document.addEventListener('click', function(e){
     window.__memoLoadData(true, function(st){
       document.getElementById('boot').classList.add('hidden');
       buildSession(); next(); renderSheet(); header();
-      toast(st.books ? ('词库已更新（'+dataSourceLabel()+'）') : '获取失败，仍用内置词表');
+      toast(st.books ? '词库已更新' : '获取失败，仍用内置词表');
     });
   }
   else if(a==='importBackup'){ document.getElementById('fileInput').click(); }
@@ -2540,7 +2548,7 @@ function bootDone(status){
   if(!status.books) toast('词库未就绪，正在用内置四级词表 · 可在设置里重试');
   else if(/^(https?:\/\/|\.\/|\/)/.test(status.source||'')){
     var tag = status.source.indexOf('gitee')>=0 ? 'Gitee' : (status.source.indexOf('jsdelivr')>=0 ? 'CDN' : 'GitHub');
-    toast('词库已更新（'+tag+'）');
+    toast('词库已更新');
   }
   if(!storageOK) warnNoStorage();
   if(!document.getElementById('panel').classList.contains('hidden')) renderSheet();
