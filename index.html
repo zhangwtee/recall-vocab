@@ -254,6 +254,13 @@ textarea{width:100%;min-height:130px;background:var(--card);color:var(--fg);bord
 .note-edit textarea{width:100%;min-height:76px;padding:10px 12px;background:var(--card2);
   border:1px solid var(--line);border-radius:9px;color:var(--fg);font-size:13px;
   font-family:inherit;line-height:1.5;resize:vertical}
+.note-edit .mean-alt{width:100%;margin-top:8px;padding:10px 12px;background:var(--card2);
+  border:1px solid var(--line);border-radius:9px;color:var(--fg);font-size:13px;font-family:inherit}
+.mean-ops{display:flex;gap:8px;margin-top:8px}
+.mean-ops .btn{margin:0;flex:1}
+.code-box{width:100%;min-height:72px;margin:8px 0;padding:10px 12px;background:var(--card2);
+  border:1px solid var(--line);border-radius:9px;color:var(--fg);font-size:12px;
+  font-family:ui-monospace,monospace;line-height:1.5;resize:vertical;word-break:break-all}
 .wc-close{width:100%;padding:11px;border:1px solid var(--line);border-radius:9px;
   background:var(--card2);color:var(--fg);cursor:pointer;font-size:13px}
 .chart-card{background:var(--card);border:1px solid var(--line);border-radius:12px;
@@ -850,27 +857,31 @@ function defaults(){
   return {
     version:1,
     settings:{ dailyNew:20, retention:0.9, accent:'en-US', autoSpeak:false,
-               autoSpeakShow:true, hidePh:false, bookId:'cet4', customOn:false, dataBase:'', fontScale:1 },
-    cards:{}, customPool:[], dailyLog:{}, mistakes:[], createdAt:Date.now()
+               autoSpeakShow:true, hidePh:false, bookId:'cet4', customOn:false, dataBase:'',
+               fontScale:1, voiceSource:'auto' },
+    cards:{}, customPool:[], dailyLog:{}, mistakes:[], overrides:{}, createdAt:Date.now()
   };
+}
+// 本地存储和备份码都走这里，老备份缺字段也能补齐
+function normalizeState(s){
+  if(!s || s.version !== 1) return null;
+  var d = defaults();
+  s.settings = Object.assign(d.settings, s.settings||{});
+  if(s.settings.poolMode){
+    s.settings.bookId = 'cet4';
+    s.settings.customOn = s.settings.poolMode!=='builtin';
+    delete s.settings.poolMode;
+  }
+  s.cards = s.cards||{}; s.customPool = s.customPool||[]; s.dailyLog = s.dailyLog||{};
+  if(!Array.isArray(s.mistakes)) s.mistakes = [];
+  s.overrides = s.overrides||{};
+  return s;
 }
 function load(){
   try{
     var raw = localStorage.getItem(LS);
     if(!raw) return defaults();
-    var s = JSON.parse(raw);
-    if(!s || s.version !== 1) return defaults();
-    var d = defaults();
-    s.settings = Object.assign(d.settings, s.settings||{});
-    // 旧版本字段迁移
-    if(s.settings.poolMode){
-      s.settings.bookId = s.settings.poolMode==='custom' ? 'cet4' : 'cet4';
-      s.settings.customOn = s.settings.poolMode!=='builtin';
-      delete s.settings.poolMode;
-    }
-    s.cards = s.cards||{}; s.customPool = s.customPool||[]; s.dailyLog = s.dailyLog||{};
-    if(!Array.isArray(s.mistakes)) s.mistakes = [];
-    return s;
+    return normalizeState(JSON.parse(raw)) || defaults();
   }catch(e){ return defaults(); }
 }
 var state = load();
@@ -1079,6 +1090,10 @@ function next(){
   current = session.queue.shift() || null;
   feedback = null;
   autoSpokenKey = null;
+  if(!current && mistakeDrill){
+    mistakeDrill = null; saveNow(); renderSheet();
+    toast('错词重练完成');
+  }
   if(current){
     var k = cardKey(current.w);
     session.shown[k] = (session.shown[k]||0)+1;
@@ -1144,6 +1159,7 @@ function confirmFeedback(forceGood){
     queue:session.queue.slice(), done:session.done
   };
   applyRating(forceGood ? 3 : feedback.g);
+  updateMistakeDrill(k, forceGood ? 3 : feedback.g);
   next();
 }
 function undoRating(){
@@ -1196,15 +1212,18 @@ function speakOnline(text, quiet){
     return true;
   }catch(e){ return false; }
 }
-function speak(text, quiet){
+function speak(text, quiet, opts){
+  opts = opts || {};
   if(!text) return;
+  var source = opts.source || state.settings.voiceSource || 'auto';
+  var rate = Number(opts.rate) || 0.85;
   speechStarted = false;
-  if(TTS_OK){
+  if(TTS_OK && source!=='online'){
     try{
       speechSynthesis.cancel();
       var u = new SpeechSynthesisUtterance(text);
       var accent = state.settings.accent;
-      u.lang = accent; u.rate = 0.85;
+      u.lang = accent; u.rate = rate;
       var vs = speechSynthesis.getVoices()||[];
       var v = null;
       for(var i=0;i<vs.length;i++){ if(vs[i].lang===accent){ v=vs[i]; break; } }
@@ -1212,17 +1231,45 @@ function speak(text, quiet){
       if(v) u.voice = v;
       u.onstart = function(){ speechStarted = true; };
       speechSynthesis.speak(u);
-      // 没装英文语音时 speak 不报错也不出声，等不到开始事件就换在线音频
+      // 没装英文语音时 speak 不报错也不出声，等不到开始事件再决定是否降级
       setTimeout(function(){
         if(speechStarted) return;
         if(speechSynthesis.speaking || speechSynthesis.pending) return;
+        if(source==='system'){
+          if(!quiet) warnNoSpeech('本机没有英文语音 · 去设置里把发音音源改成「在线」');
+          return;
+        }
         if(!speakOnline(text, quiet) && !quiet) warnNoSpeech();
       }, 1200);
       return;
     }catch(e){}
   }
+  if(source==='system'){
+    if(!quiet) warnNoSpeech('本机没有语音引擎 · 去设置里把发音音源改成「在线」');
+    return;
+  }
   if(!speakOnline(text, quiet) && !quiet) warnNoSpeech();
 }
+// 长按喇叭慢速朗读。触发后吞掉随后的 click，避免又读一遍常速。
+var speakHold = null, speakLongFired = false;
+document.addEventListener('pointerdown', function(e){
+  var b = e.target.closest && e.target.closest('.speak,.ex-speak');
+  if(!b) return;
+  var txt = b.dataset.text || (current && current.w);
+  if(!txt) return;
+  speakLongFired = false;
+  speakHold = setTimeout(function(){
+    speakLongFired = true;
+    speak(txt, false, {rate:0.6});
+    toast('慢速朗读');
+  }, 480);
+}, true);
+function clearSpeakHold(){ if(speakHold){ clearTimeout(speakHold); speakHold = null; } }
+document.addEventListener('pointerup', clearSpeakHold, true);
+document.addEventListener('pointercancel', clearSpeakHold, true);
+document.addEventListener('contextmenu', function(e){
+  if(e.target.closest && e.target.closest('.speak,.ex-speak')) e.preventDefault();
+}, true);
 // 新词出现就读一遍；同一张卡重复渲染（揭晓、撤销）不再读。
 function speakOnShow(force){
   if(!state.settings.autoSpeakShow || !current || drill || peekCard) return;
@@ -1706,6 +1753,9 @@ function renderSheet(){
       + seg('retention',[['0.85','85%'],['0.9','90%'],['0.95','95%']],String(s.retention))+'</div>'
       + '<div class="row"><div><div class="label">发音口音</div><div class="sub">卡片上也能直接点「美音 / 英音」切换</div></div>'
       + seg('accent',[['en-US','美音'],['en-GB','英音']],s.accent)+'</div>'
+      + '<div class="row"><div><div class="label">发音音源</div>'
+      + '<div class="sub">自动：先试本机语音，不行再用在线音频；在线音频不支持慢速</div></div>'
+      + seg('voiceSource',[['auto','自动'],['system','本机'],['online','在线']],s.voiceSource||'auto')+'</div>'
       + '<div class="row"><div><div class="label">字体大小</div><div class="sub">单词、释义、例句和输入一起调整</div></div>'
       + seg('fontScale',[['0.9','小'],['1','标准'],['1.15','大'],['1.3','超大']],String(s.fontScale||1))+'</div>'
       + '<div class="row"><div><div class="label">揭晓前隐藏音标</div><div class="sub">想不起来的线索更少</div></div>'
@@ -1716,7 +1766,7 @@ function renderSheet(){
       + '<div class="row"><div><div class="label">揭晓后自动朗读</div></div>'
       + seg('autoSpeak',[[0,'关'],[1,'开']],s.autoSpeak?1:0)+'</div>'
       + '<div class="note">写出意思：<kbd>↵</kbd> 提交判分；不写：<kbd>1</kbd>/<kbd>2</kbd>/<kbd>3</kbd> 直接选档位<br>'
-      + '反馈后 <kbd>↵</kbd> 下一词 · <kbd>S</kbd> 朗读<br>'
+      + '反馈后 <kbd>↵</kbd> 下一词 · <kbd>S</kbd> 朗读 · 长按喇叭慢速读<br>'
       + '手机上：浏览器菜单 →「添加到主屏幕」，之后全屏打开，跟 App 一样。</div>';
   }else if(tab==='words'){
     el.innerHTML = '<div class="label" style="margin-bottom:10px">选择词书</div>'
@@ -1756,7 +1806,14 @@ function renderSheet(){
       + '<button class="btn" data-action="export">导出备份 JSON</button>'
       + '<button class="btn" data-action="importBackup">导入备份 JSON</button>'
       + '<input type="file" id="fileInput" accept="application/json,.json" style="display:none">'
-      + '<button class="btn danger" data-action="reset">清空全部进度</button>'
+      + '<div class="label" style="margin:20px 0 8px">备份码（换设备用）</div>'
+      + '<div class="sub" style="margin-bottom:8px">生成后复制到备忘录或微信收藏，在新设备打开同一个页面粘贴即可恢复，不用找文件。</div>'
+      + '<button class="btn" data-action="makeBackupCode">生成备份码</button>'
+      + '<textarea class="code-box" id="backupCode" readonly placeholder="点上面生成，再点复制"></textarea>'
+      + '<button class="btn" data-action="copyBackupCode">复制备份码</button>'
+      + '<textarea class="code-box" id="restoreCode" placeholder="在这里粘贴备份码"></textarea>'
+      + '<button class="btn" data-action="restoreBackupCode">从备份码恢复</button>'
+      + '<button class="btn danger" data-action="reset" style="margin-top:20px">清空全部进度</button>'
       + '<div class="label" style="margin:20px 0 8px">词库源</div>'
       + '<div class="sub" style="margin-bottom:8px">当前来源：'+esc(dataSourceLabel())+' · '
       + (getBooks().length? '词书 '+getBooks().length+' 本':'内置四级 '+WORDS.length+' 词')+'</div>'
@@ -2043,8 +2100,11 @@ function renderConfusion(el){
     + '<div class="chart-card"><div class="chart-title">错义分析</div>'
     + '<div class="chart-sub">写错的意思会留在这里。程序会拿它去词库里反查，'
     + '看看你是不是想成了另一个拼写相近的词；只是线索，不是标准答案。</div>'
-    + (list.length ? '<button class="btn danger" data-action="clearMistakes">清空错义记录</button>'
-                   : '<div class="conf-meta">还没有记录。写错一次意思后就会出现在这里。</div>')
+    + (list.length
+       ? '<button class="btn" data-action="startMistakeDrill">把这些词再练一遍（'
+         + new Set(list.map(function(m){ return cardKey(m.w); })).size + ' 个）</button>'
+         + '<button class="btn danger" data-action="clearMistakes">清空错义记录</button>'
+       : '<div class="conf-meta">还没有记录。写错一次意思后就会出现在这里。</div>')
     + '</div>';
   if(!list.length) return;
   var groups = {}, order = [];
@@ -2073,6 +2133,52 @@ function renderConfusion(el){
       + '</div></div>';
   }
   if(order.length>30) el.innerHTML += '<div class="note">仅显示写错最多的 30 组。</div>';
+}
+// 错词重练：把错过的词排两轮，连续答对两次就从错义清单移出
+var mistakeDrill = null;
+function startMistakeDrill(){
+  var list = Array.isArray(state.mistakes) ? state.mistakes.slice(-60) : [];
+  var words = [];
+  for(var i=list.length-1;i>=0;i--){
+    var w = list[i].w;
+    if(w && words.indexOf(w)<0) words.push(w);
+  }
+  words.reverse();
+  if(!words.length){ toast('还没有错词可练'); return; }
+  var cards = [];
+  for(var j=0;j<words.length;j++){
+    var k = cardKey(words[j]), c = state.cards[k];
+    if(!c){
+      var src = null, pool = window.WORD_POOL || [];
+      for(var p=0;p<pool.length;p++){ if(cardKey(pool[p].w)===k){ src=pool[p]; break; } }
+      if(!src){
+        var rec = null;
+        for(var q=0;q<list.length;q++){ if(cardKey(list[q].w)===k){ rec=list[q]; break; } }
+        src = { w:words[j], p:'', m:(rec&&rec.m)||'', alt:(rec&&rec.alt)||[] };
+      }
+      c = makeCard(src);
+      state.cards[k] = c;
+    }
+    if(c.enabled===false) c.enabled = true;
+    cards.push(c);
+  }
+  mistakeDrill = { keys:cards.map(function(c){ return cardKey(c.w); }), right:{} };
+  session.queue = cards.concat(cards).concat(session.queue);
+  session.total = session.done + session.queue.length;
+  saveNow();
+  document.getElementById('panel').classList.add('hidden');
+  next();
+  toast('错词重练：'+cards.length+' 个词，连续答对两次移出清单');
+}
+function updateMistakeDrill(k, g){
+  if(!mistakeDrill || mistakeDrill.keys.indexOf(k)<0) return;
+  mistakeDrill.right[k] = g>=3 ? (mistakeDrill.right[k]||0)+1 : 0;
+  if(mistakeDrill.right[k]>=2){
+    var before = (state.mistakes||[]).length;
+    state.mistakes = state.mistakes.filter(function(m){ return cardKey(m.w)!==k; });
+    if(state.mistakes.length < before) toast('这个词已从错义清单移出');
+  }
+  save();
 }
 function openConfusion(){ confusionOpen = true; renderSheet(); }
 function closeConfusion(){ confusionOpen = false; renderSheet(); }
@@ -2287,6 +2393,44 @@ function savePlan(){
   toast('每日新词已设为 '+v+' 个');
 }
 
+// 用户对词条的修正：覆盖词库释义，显示与判分都按修正后的来
+function overrideOf(w){ return (state.overrides||{})[cardKey(w)] || null; }
+function meanOf(c){ var o=overrideOf(c.w); return (o&&o.m!=null) ? o.m : (c.m||''); }
+function altOf(c){ var o=overrideOf(c.w); return o ? (o.alt||[]) : (c.alt||[]); }
+function saveMeaning(){
+  if(!current) return;
+  var k = cardKey(current.w), c = state.cards[k];
+  if(!c) return;
+  var mi = document.getElementById('meanInput'), ai = document.getElementById('altInput');
+  var m = mi ? mi.value.trim() : '';
+  if(!m){ toast('主释义不能为空'); return; }
+  var alt = ai ? ai.value.split(/[；;]/).map(function(x){ return x.trim(); }).filter(Boolean) : [];
+  if(!state.overrides[k]) state.overrides[k] = { origM:c.m, origAlt:(c.alt||[]).slice() };
+  state.overrides[k].m = m;
+  state.overrides[k].alt = alt;
+  c.m = m; c.alt = alt.length ? alt : null;
+  state.cards[k] = c;
+  undoSnap = null;   // 释义改了，旧的评分快照不再可靠
+  saveNow();
+  openWordInfo();
+  if(feedback) render();
+  toast('释义已修正，判分也按新的来');
+}
+function resetMeaning(){
+  if(!current) return;
+  var k = cardKey(current.w), c = state.cards[k], o = state.overrides[k];
+  if(!c || !o) return;
+  c.m = o.origM || '';
+  c.alt = (o.origAlt && o.origAlt.length) ? o.origAlt : null;
+  delete state.overrides[k];
+  state.cards[k] = c;
+  undoSnap = null;
+  saveNow();
+  openWordInfo();
+  if(feedback) render();
+  toast('已恢复词库原释义');
+}
+
 // 单词记忆档案
 function openWordInfo(){
   if(!current) return;
@@ -2310,6 +2454,13 @@ function openWordInfo(){
     + '<div class="note" style="text-align:center;margin:0 0 14px">下次复习：'+dueText+'</div>'
     + (c.tip ? '<div class="note-box"><span class="nt">书中助记</span>'+esc(c.tip)+'</div>' : '')
     + renderRef(c)
+    + '<div class="note-edit"><div class="label" style="font-size:12px;margin-bottom:6px">修正释义</div>'
+    + '<div class="sub" style="margin-bottom:8px">词库写错了就在这里改。改动优先用于显示和判分，更新词库也不会覆盖。</div>'
+    + '<textarea id="meanInput" placeholder="主释义（可留空用原释义）">'+esc(meanOf(c))+'</textarea>'
+    + '<input id="altInput" class="mean-alt" placeholder="补充义项，用；或 / 分隔（可留空）" value="'+esc((altOf(c)||[]).join('；'))+'">'
+    + '<div class="mean-ops"><button class="btn" data-action="saveMeaning">保存修正</button>'
+    + (state.overrides[cardKey(c.w)] ? '<button class="btn danger" data-action="resetMeaning">恢复原释义</button>' : '')
+    + '</div></div>'
     + '<div class="note-edit"><div class="label" style="font-size:12px;margin-bottom:6px">我的助记</div>'
     + '<textarea id="noteInput" placeholder="写点只属于你的记忆线索，比如词根、谐音、画面…">'+esc(c.note||'')+'</textarea>'
     + '<button class="btn" data-action="saveNote" style="margin:8px 0 14px">保存助记</button></div>'
@@ -2337,6 +2488,56 @@ function toggleFamiliar(){
     openWordInfo(); render();
     toast(c.familiar ? '已标记熟知，不再进入复习队列' : '已恢复复习');
   }
+}
+
+// ── 文本备份码：手机上复制粘贴比找 JSON 文件省事 ──────────
+function utf8ToB64(s){
+  if(window.TextEncoder){
+    var bytes = new TextEncoder().encode(s), bin = '';
+    for(var i=0;i<bytes.length;i++) bin += String.fromCharCode(bytes[i]);
+    return btoa(bin);
+  }
+  return btoa(unescape(encodeURIComponent(s)));
+}
+function b64ToUtf8(b64){
+  if(window.TextDecoder){
+    var bin = atob(b64), bytes = new Uint8Array(bin.length);
+    for(var i=0;i<bin.length;i++) bytes[i] = bin.charCodeAt(i);
+    return new TextDecoder().decode(bytes);
+  }
+  return decodeURIComponent(escape(atob(b64)));
+}
+function makeBackupCode(){
+  var ta = document.getElementById('backupCode');
+  if(!ta) return;
+  ta.value = 'NIXIANG1.' + utf8ToB64(JSON.stringify(state));
+  toast('备份码已生成，复制后存到备忘录或微信收藏');
+}
+function copyBackupCode(){
+  var ta = document.getElementById('backupCode');
+  if(!ta || !ta.value){ toast('先生成备份码'); return; }
+  ta.focus(); ta.select(); ta.setSelectionRange(0, ta.value.length);
+  var ok = false;
+  try{ ok = document.execCommand('copy'); }catch(e){}
+  if(ok){ toast('已复制，粘贴到备忘录或微信收藏保存'); return; }
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(ta.value).then(
+      function(){ toast('已复制'); },
+      function(){ toast('复制失败，长按文本框手动复制'); });
+  }else toast('长按文本框手动复制');
+}
+function restoreBackupCode(){
+  var ta = document.getElementById('restoreCode');
+  var s = ta ? ta.value.replace(/\s+/g,'') : '';
+  if(!s){ toast('先粘贴备份码'); return; }
+  if(s.slice(0,9)!=='NIXIANG1.'){ toast('不是有效的备份码'); return; }
+  try{
+    var obj = normalizeState(JSON.parse(b64ToUtf8(s.slice(9))));
+    if(!obj) throw new Error('版本不兼容');
+    if(!confirm('恢复备份？这台设备上的进度会被覆盖。')) return;
+    state = obj; saveNow(); buildSession(); next(); renderSheet();
+    toast('已恢复 '+Object.keys(state.cards).length+' 个词的进度');
+  }catch(e){ toast('恢复失败：'+e.message); }
 }
 
 // ── 事件 ─────────────────────────────────────────────────
@@ -2380,6 +2581,7 @@ document.addEventListener('click', function(e){
       }
     }
     else if(name==='accent') state.settings.accent = val;
+    else if(name==='voiceSource') state.settings.voiceSource = val;
     else if(name==='fontScale'){ state.settings.fontScale = parseFloat(val); applyFontScale(); }
     else if(name==='hidePh') state.settings.hidePh = val==='1';
     else if(name==='autoSpeak') state.settings.autoSpeak = val==='1';
@@ -2421,8 +2623,14 @@ document.addEventListener('click', function(e){
   if(!b) return;
   var a = b.dataset.action;
   if(a==='toggleAccent') toggleAccent();
-  else if(a==='speak' && current) speak(current.w);
-  else if(a==='speakText' && b.dataset.text) speak(b.dataset.text);
+  else if(a==='speak' && current){
+    if(speakLongFired){ speakLongFired=false; return; }
+    speak(current.w);
+  }
+  else if(a==='speakText' && b.dataset.text){
+    if(speakLongFired){ speakLongFired=false; return; }
+    speak(b.dataset.text);
+  }
   else if(a==='wordInfo') openWordInfo();
   else if(a==='closeWordInfo') closeWordInfo();
   else if(a==='toggleFamiliar') toggleFamiliar();
@@ -2434,6 +2642,8 @@ document.addEventListener('click', function(e){
     saveNow(); toast(current.note ? '助记已保存' : '助记已清空');
     if(feedback) render();
   }
+  else if(a==='saveMeaning') saveMeaning();
+  else if(a==='resetMeaning') resetMeaning();
   else if(a==='setInputMode') setInputMode(b.dataset.mode);
   else if(a==='quickRate') quickRate(parseInt(b.dataset.g,10));
   else if(a==='submitInput') submitInput();
@@ -2448,6 +2658,7 @@ document.addEventListener('click', function(e){
   else if(a==='openConfusion') openConfusion();
   else if(a==='closeConfusion') closeConfusion();
   else if(a==='clearMistakes') clearMistakes();
+  else if(a==='startMistakeDrill') startMistakeDrill();
   else if(a==='startDrill') startDrill();
   else if(a==='submitDrill') submitDrill();
   else if(a==='closeDrill') closeDrill();
@@ -2523,6 +2734,9 @@ document.addEventListener('click', function(e){
     });
   }
   else if(a==='importBackup'){ document.getElementById('fileInput').click(); }
+  else if(a==='makeBackupCode') makeBackupCode();
+  else if(a==='copyBackupCode') copyBackupCode();
+  else if(a==='restoreBackupCode') restoreBackupCode();
   else if(a==='reset'){
     if(!confirm('清空全部进度？此操作不可撤销，建议先导出备份。')) return;
     var sets = state.settings;
@@ -2548,8 +2762,8 @@ document.addEventListener('change', function(e){
   var f = e.target.files[0], r = new FileReader();
   r.onload = function(){
     try{
-      var s = JSON.parse(r.result);
-      if(s.version!==1 || !s.cards) throw new Error('不是有效的备份文件');
+      var s = normalizeState(JSON.parse(r.result));
+      if(!s || !s.cards) throw new Error('不是有效的备份文件');
       state = s; saveNow(); buildSession(); next(); closePanel();
       toast('已恢复 '+Object.keys(state.cards).length+' 个词的进度');
     }catch(err){ toast('导入失败：'+err.message); }
