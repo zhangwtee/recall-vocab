@@ -49,6 +49,9 @@ header{flex:none;display:flex;align-items:center;gap:12px;padding:16px 20px 8px}
 .bp-foot{flex:none;padding:10px 18px;border-top:1px solid var(--line);text-align:center}
 .bp-foot button{width:100%;padding:11px;border:1px solid var(--line);border-radius:9px;
   background:var(--card);color:var(--fg);font-size:14px;cursor:pointer}
+#wordSetPanel{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:23;
+  display:flex;justify-content:center;align-items:center}
+#wordSetPanel.hidden{display:none}
 /* 今日计划面板内的控件 */
 .plan-big{display:flex;align-items:center;justify-content:center;gap:12px;margin:6px 0 14px}
 .plan-big input{width:96px;padding:12px;text-align:center;font-size:28px;font-weight:650;
@@ -306,9 +309,18 @@ textarea{width:100%;min-height:130px;background:var(--card);color:var(--fg);bord
   border-radius:7px;padding:5px 10px;font-size:11px;cursor:pointer}
 .witem .ops button:hover{color:var(--fg)}
 .stat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:8px}
-.stat{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;
+  text-align:left;cursor:pointer;font-family:inherit}
+.stat:hover{border-color:var(--blue)}
 .stat .n{font-size:24px;font-weight:650}
 .stat .t{font-size:11px;color:var(--dim);margin-top:4px}
+.bar-row{display:flex;width:100%;align-items:center;gap:8px;margin:5px 0;font-size:11px;
+  border:0;background:transparent;color:var(--fg);padding:2px 0;cursor:pointer;
+  font-family:inherit;text-align:left}
+.day-row{display:flex;justify-content:space-between;width:100%;padding:6px 0;font-size:12px;
+  border:0;border-bottom:1px solid var(--line);background:transparent;color:var(--fg);
+  cursor:pointer;font-family:inherit;text-align:left}
+.chart-card svg [data-action]{cursor:pointer}
 #toast{position:fixed;left:50%;bottom:40px;transform:translateX(-50%) translateY(20px);
   background:var(--card2);border:1px solid var(--line);color:var(--fg);padding:11px 20px;
   border-radius:10px;font-size:13px;z-index:50;opacity:0;transition:.25s;pointer-events:none;
@@ -399,6 +411,13 @@ kbd{background:var(--card2);border:1px solid var(--line);border-radius:4px;paddi
       <div class="note" style="margin:12px 0 0">改大：今天立刻多引入新词。改小：今天已引入的不撤回，明天起按新数量走。<br>复习按钮把那几天学过的词插到队列最前面，再评一次后会按新的反馈重新排期。</div>
     </div>
     <div class="bp-foot"><button data-action="savePlan" class="plan-save">保存并更新今日队列</button></div>
+  </div>
+</div>
+<div id="wordSetPanel" class="hidden">
+  <div class="bp-card">
+    <div class="bp-head"><h2 id="wsTitle">词单</h2><p id="wsSub"></p></div>
+    <div class="bp-body"><div class="wlist" id="wsList"></div></div>
+    <div class="bp-foot"><button data-action="closeWordSet">关闭</button></div>
   </div>
 </div>
 <div id="toast"></div>
@@ -1470,7 +1489,9 @@ function header(){
 function render(){ stage(); header(); }
 
 // ── 设置面板 ─────────────────────────────────────────────
+function isStandalone(){ return !!window.__memoStandalone; }
 function dataSourceLabel(){
+  if(isStandalone()) return '内置（本文件）';
   var st = window.__memoDataStatus || {};
   if(!st.source) return '未加载';
   if(st.source==='本地缓存') return '本地缓存';
@@ -1482,6 +1503,27 @@ function seg(name, opts, val){
   return '<div class="seg" data-seg="'+name+'">'+opts.map(function(o){
     return '<button data-val="'+o[0]+'"'+(String(val)===String(o[0])?' class="on"':'')+'>'+o[1]+'</button>';
   }).join('')+'</div>';
+}
+// 改目标记忆率后按新保留率重算已学词的到期时间；学习中的分钟级步骤不动。
+function rescheduleForRetention(r){
+  var now = Date.now(), moved = 0, k;
+  for(k in state.cards){
+    var c = state.cards[k];
+    if(!c || c.state!=='review' || !(c.stability>0) || !(c.lastReview>0)) continue;
+    var due = c.lastReview + FSRS.intervalFromStability(c.stability, r)*DAY;
+    if(due !== c.dueAt){ c.dueAt = due; moved++; }
+  }
+  var inQ = {};
+  for(var i=0;i<session.queue.length;i++) inQ[cardKey(session.queue[i].w)] = 1;
+  if(current) inQ[cardKey(current.w)] = 1;
+  for(k in state.cards){
+    var q = state.cards[k];
+    if(q.enabled===false || q.state==='new' || (q.dueAt||0)>now || inQ[k]) continue;
+    session.queue.push(q); inQ[k] = 1;
+  }
+  session.queue.sort(function(a,b){ return (a.dueAt||0)-(b.dueAt||0); });
+  session.total = session.done + session.queue.length;
+  return moved;
 }
 // 词书分类网格（设置面板与首页快捷选书共用）
 function renderBookGrid(){
@@ -1553,18 +1595,31 @@ function renderSheet(){
       + '<div class="row" style="margin-top:14px"><div><div class="label">同时使用自定义词库</div>'
       + '<div class="sub">当前自定义 '+state.customPool.length+' 词</div></div>'
       + seg('customOn',[[0,'关'],[1,'开']],s.customOn?1:0)+'</div>'
-      + '<input class="search" id="wsearch" placeholder="搜索单词或释义" autocomplete="off">'
+      + '<div class="label" style="margin:16px 0 8px">自定义词库（'+state.customPool.length+' 词）</div>'
+      + '<input class="search" id="wsearch" placeholder="搜索自定义单词或释义" autocomplete="off">'
       + '<div class="wlist" id="wlist"></div>'
       + '<div class="note">格式：<code>word [音标] 释义</code> 或 <code>word⇥释义</code>，每行一个词。</div>'
       + '<textarea id="importText" placeholder="在此粘贴词表，每行一个词"></textarea>'
       + '<button class="btn" data-action="importWords">导入自定义词表</button>'
-      + '<button class="btn danger" data-action="clearCustom">清空自定义词库</button>';
+      + '<button class="btn danger" data-action="clearCustom">清空自定义词库</button>'
+      + '<div class="label" style="margin:20px 0 8px">已学单词（进度）</div>'
+      + '<input class="search" id="learnedSearch" placeholder="搜索已学单词或释义" autocomplete="off">'
+      + '<div class="wlist" id="learnedList"></div>';
     renderWordList('');
+    renderLearnedList('');
   }else if(tab==='stats'){
     if(confusionOpen) renderConfusion(el); else renderStats(el);
   }else{
     var learned = Object.keys(state.cards).length;
     var dueNum = Object.keys(state.cards).filter(function(k){ return state.cards[k].dueAt<=Date.now(); }).length;
+    var sourceBox = isStandalone()
+      ? '<div class="note">词库和例句都在本文件里，不需要联网，也不用设置词库源。</div>'
+      : '<input class="search" id="dataBaseInput" placeholder="自定义词库目录 URL（留空用官方源）" value="'+esc(s.dataBase||'')+'">'
+        + '<div style="display:flex;gap:8px;margin-bottom:8px">'
+        + '<button class="btn" data-action="saveDataBase" style="flex:1">保存并重取</button>'
+        + '<button class="btn" data-action="clearDataCache" style="flex:1">清缓存重取</button></div>'
+        + '<div class="note">官方源按 CDN → Gitee → GitHub 自动切换；首次联网取到后本机缓存，离线照常用。<br>'
+        + '自定义填目录 URL（需含 books.js 与 examples.js，如 <code>https://gitee.com/你/仓库/raw/main/data</code>）。</div>';
     el.innerHTML = '<div class="stat-grid">'
       + '<div class="stat"><div class="n">'+learned+'</div><div class="t">已学词数</div></div>'
       + '<div class="stat"><div class="n">'+dueNum+'</div><div class="t">待复习</div></div></div>'
@@ -1575,12 +1630,7 @@ function renderSheet(){
       + '<div class="label" style="margin:20px 0 8px">词库源</div>'
       + '<div class="sub" style="margin-bottom:8px">当前来源：'+esc(dataSourceLabel())+' · '
       + (getBooks().length? '词书 '+getBooks().length+' 本':'内置四级 '+WORDS.length+' 词')+'</div>'
-      + '<input class="search" id="dataBaseInput" placeholder="自定义词库目录 URL（留空用官方源）" value="'+esc(s.dataBase||'')+'">'
-      + '<div style="display:flex;gap:8px;margin-bottom:8px">'
-      + '<button class="btn" data-action="saveDataBase" style="flex:1">保存并重取</button>'
-      + '<button class="btn" data-action="clearDataCache" style="flex:1">清缓存重取</button></div>'
-      + '<div class="note">官方源按 CDN → Gitee → GitHub 自动切换；首次联网取到后本机缓存，离线照常用。<br>'
-      + '自定义填目录 URL（需含 books.js 与 examples.js，如 <code>https://gitee.com/你/仓库/raw/main/data</code>）。</div>'
+      + sourceBox
       + '<div class="note">所有进度保存在这台设备的浏览器里。换设备前先导出备份。<br>'
       + '同一单词的复习记录跟随单词本身，换词库不会丢。</div>';
   }
@@ -1648,8 +1698,9 @@ function forgettingCurveSVG(cards){
     var cx = pad.l + x/3*iw, cy = pad.t + (1-r)*ih;
     var rad = Math.min(6, 2 + Math.sqrt(b.n)*0.7);
     dots += '<circle cx="'+cx.toFixed(1)+'" cy="'+cy.toFixed(1)+'" r="'+rad.toFixed(1)
-      + '" fill="#4ade80" fill-opacity="0.85" stroke="#0f1115" stroke-width="0.6">'
-      + '<title>'+b.n+' 个词 · 平均记得 '+Math.round(r*100)+'%</title></circle>';
+      + '" fill="#4ade80" fill-opacity="0.85" stroke="#0f1115" stroke-width="0.6"'
+      + ' data-action="openWordSet" data-set="curve" data-bi="'+k+'">'
+      + '<title>'+b.n+' 个词 · 平均记得 '+Math.round(r*100)+'%，点击查看词单</title></circle>';
   });
   var svg = '<svg viewBox="0 0 '+W+' '+H+'" xmlns="http://www.w3.org/2000/svg">'
     + '<line x1="'+pad.l+'" y1="'+(pad.t+ih)+'" x2="'+(W-pad.r)+'" y2="'+(pad.t+ih)+'" stroke="#303744" stroke-width="1"/>'
@@ -1678,7 +1729,9 @@ function barsSVG(future){
     var h = x.n? Math.max(3, x.n/max*ih) : 2;
     var y = pad.t+ih-h;
     var color = x.n===0 ? '#303744' : (i===0?'#6ea8fe':'#4b8ef5');
-    svg += '<rect x="'+(cx-bw/2).toFixed(1)+'" y="'+y.toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+h.toFixed(1)+'" rx="2" fill="'+color+'"/>';
+    svg += '<rect x="'+(cx-bw/2).toFixed(1)+'" y="'+y.toFixed(1)+'" width="'+bw.toFixed(1)
+      + '" height="'+h.toFixed(1)+'" rx="2" fill="'+color+'" data-action="openWordSet"'
+      + ' data-set="future" data-day="'+i+'"><title>'+x.label+'：'+x.n+' 词，点击查看词单</title></rect>';
     if(x.n>0) svg += '<text x="'+cx.toFixed(1)+'" y="'+(y-3).toFixed(1)+'" fill="#9aa3b2" font-size="9" text-anchor="middle">'+x.n+'</text>';
     if(i%2===0 || i===0) svg += '<text x="'+cx.toFixed(1)+'" y="'+(H-7)+'" fill="#6b7482" font-size="8" text-anchor="middle">'+x.label+'</text>';
   });
@@ -1710,10 +1763,10 @@ function renderStats(el){
   var bmax = Math.max(1, ...d.buckets);
 
   el.innerHTML = '<div class="stat-grid">'
-    + '<div class="stat"><div class="n">'+learned+'</div><div class="t">学过的词</div></div>'
-    + '<div class="stat"><div class="n">'+mastered+'</div><div class="t">已掌握（稳定≥21天）</div></div>'
-    + '<div class="stat"><div class="n">'+due+'</div><div class="t">今天待复习</div></div>'
-    + '<div class="stat"><div class="n">'+streak+'</div><div class="t">连续学习天数</div></div>'
+    + '<button type="button" class="stat" data-action="openWordSet" data-set="learned"><div class="n">'+learned+'</div><div class="t">学过的词 · 点开词单</div></button>'
+    + '<button type="button" class="stat" data-action="openWordSet" data-set="mastered"><div class="n">'+mastered+'</div><div class="t">已掌握（稳定≥21天）· 点开</div></button>'
+    + '<button type="button" class="stat" data-action="openWordSet" data-set="due"><div class="n">'+due+'</div><div class="t">今天待复习 · 点开词单</div></button>'
+    + '<button type="button" class="stat" data-action="openWordSet" data-set="day" data-date="'+todayKey()+'"><div class="n">'+streak+'</div><div class="t">连续学习天数 · 点开今天</div></button>'
     + '</div>'
     + '<button class="btn" data-action="openConfusion">错义分析（'+((state.mistakes||[]).length)+' 条）</button>'
 
@@ -1730,11 +1783,11 @@ function renderStats(el){
     + '<div class="chart-card"><div class="chart-title">当前记忆强度分布</div>'
     + '<div class="chart-sub">你学过的词此刻还记得多少。越靠右越牢。</div>'
     + d.buckets.map(function(n,i){
-        return '<div style="display:flex;align-items:center;gap:8px;margin:5px 0;font-size:11px">'
+        return '<button type="button" class="bar-row" data-action="openWordSet" data-set="bucket" data-bi="'+i+'">'
           + '<span style="width:52px;color:var(--dim2)">'+bl[i]+'</span>'
-          + '<div style="flex:1;height:9px;background:var(--card2);border-radius:5px;overflow:hidden">'
-          + '<div style="height:100%;width:'+(n/bmax*100).toFixed(0)+'%;background:'+bcol[i]+'"></div></div>'
-          + '<span style="width:26px;text-align:right;color:var(--dim)">'+n+'</span></div>';
+          + '<span style="flex:1;height:9px;background:var(--card2);border-radius:5px;overflow:hidden">'
+          + '<span style="display:block;height:100%;width:'+(n/bmax*100).toFixed(0)+'%;background:'+bcol[i]+'"></span></span>'
+          + '<span style="width:26px;text-align:right;color:var(--dim)">'+n+'</span></button>';
       }).join('')
     + '</div>'
 
@@ -1752,6 +1805,62 @@ function renderStats(el){
 
     + '<div class="chart-card"><div class="chart-title">最近学习记录</div>'
     + recentDaysHTML() + '</div>';
+}
+// 统计里的数字、柱子、曲线点和日历格子都能点开对应词单
+function collectWordSet(set, ds){
+  var now = Date.now(), list = [], title = '词单', sub = '';
+  var cards = Object.keys(state.cards).map(function(k){ return state.cards[k]; })
+    .filter(function(c){ return c && c.state!=='new' && c.enabled!==false && c.reps>0; });
+  if(set==='learned'){
+    title = '学过的词';
+    list = cards;
+  }else if(set==='mastered'){
+    title = '已掌握的词'; sub = '记忆稳定性 ≥ 21 天';
+    list = cards.filter(function(c){ return c.stability>=21; });
+  }else if(set==='due'){
+    title = '今天待复习';
+    list = cards.filter(function(c){ return (c.dueAt||0)<=now; });
+  }else if(set==='day'){
+    var key = ds.date || '';
+    title = key+' 学习过';
+    list = cards.filter(function(c){ return dayKeyOf(c.lastReview||0)===key; });
+  }else if(set==='bucket'){
+    var bi = parseInt(ds.bi,10)||0;
+    title = '记忆强度 '+['<0.5','0.5~0.7','0.7~0.85','0.85~0.95','>0.95'][bi];
+    list = cards.filter(function(c){
+      if(!(c.stability>0)) return false;
+      var r = FSRS.retrievability(Math.max(0,(now-(c.lastReview||now))/DAY), c.stability);
+      return (r<0.5?0:r<0.7?1:r<0.85?2:r<0.95?3:4)===bi;
+    });
+  }else if(set==='future'){
+    var d = parseInt(ds.day,10)||0;
+    var dn = new Date(now+d*DAY); dn.setHours(0,0,0,0);
+    var de = new Date(dn.getTime()+DAY);
+    title = (d===0?'今天':d===1?'明天':(dn.getMonth()+1)+'/'+dn.getDate())+' 待复习';
+    list = cards.filter(function(c){ return (c.dueAt||0)>=dn.getTime() && (c.dueAt||0)<de.getTime(); });
+  }else if(set==='curve'){
+    var cb = parseInt(ds.bi,10)||0;
+    title = '遗忘曲线上的词'; sub = '距上次复习时间 ÷ 记忆稳定性落在这一区间';
+    list = cards.filter(function(c){
+      if(!(c.stability>0)||!c.lastReview) return false;
+      var x = (now-c.lastReview)/DAY/c.stability;
+      return x>=0 && x<=3 && Math.min(11,Math.floor(x/3*12))===cb;
+    });
+  }
+  list.sort(function(a,b){ return (a.dueAt||0)-(b.dueAt||0); });
+  return {title:title, sub:sub, list:list};
+}
+function openWordSet(ds){
+  var r = collectWordSet(ds.set || '', ds);
+  document.getElementById('wsTitle').textContent = r.title+'（'+r.list.length+'）';
+  document.getElementById('wsSub').textContent = r.sub || (r.list.length?'点喇叭可以听发音':'这里还没有符合条件的词');
+  document.getElementById('wsList').innerHTML = r.list.slice(0,80).map(function(c){
+    var st = (c.dueAt||0)<=Date.now() ? '待复习' : FSRS.humanizeDuration(c.dueAt-Date.now())+'后';
+    return '<div class="witem"><div class="top"><span class="w">'+esc(c.w)+'</span>'
+      + '<span class="st">'+st+'</span></div><div class="m">'+esc(c.m||'')+'</div>'
+      + '<div class="ops"><button data-action="speakText" data-text="'+esc(c.w)+'">朗读</button></div></div>';
+  }).join('') + (r.list.length>80 ? '<div class="note">仅显示前 80 条</div>' : '');
+  document.getElementById('wordSetPanel').classList.remove('hidden');
 }
 // 错义分析：把写错的中文反查回词库，看看是不是想成了另一个形近词
 function wordSim(a,b){
@@ -1928,21 +2037,54 @@ function showHeatCell(btn){
   else txt += ' · 新词 '+(l.neu||0)+' · 复习 '+(l.rev||0)
            + ' · 共 '+n+' 词（认识 '+(l.good||0)+' · 模糊 '+(l.hard||0)+' · 不认识 '+(l.again||0)+'）';
   out.textContent = txt;
+  if(l && ((l.neu||0)+(l.rev||0)) && !btn.classList.contains('future')){
+    var more = document.createElement('button');
+    more.type = 'button'; more.className = 'btn'; more.style.marginTop = '6px';
+    more.dataset.action = 'openWordSet'; more.dataset.set = 'day'; more.dataset.date = key;
+    more.textContent = '查看当天词单';
+    out.appendChild(more);
+  }
 }
 function recentDaysHTML(){
   var rows = [], keys = Object.keys(state.dailyLog).sort().reverse().slice(0,14);
   if(!keys.length) return '<div class="note">还没有学习记录</div>';
   keys.forEach(function(k){
     var l = state.dailyLog[k];
-    rows.push('<div style="display:flex;justify-content:space-between;padding:6px 0;'
-      + 'border-bottom:1px solid var(--line);font-size:12px">'
+    rows.push('<button type="button" class="day-row" data-action="openWordSet" data-set="day" data-date="'+k+'">'
       + '<span style="color:var(--dim)">'+k+'</span>'
-      + '<span>新 '+l.neu+' · 复习 '+l.rev+' · 认识 '+(l.good||0)+'</span></div>');
+      + '<span>新 '+l.neu+' · 复习 '+l.rev+' · 认识 '+(l.good||0)+'</span></button>');
   });
   return rows.join('');
 }
+// 自定义词库列表：搜的是自己导入的词，不是已学词；每条可单独删除
 function renderWordList(q){
   var box = document.getElementById('wlist');
+  if(!box) return;
+  q = (q||'').toLowerCase();
+  var items = [];
+  for(var i=0;i<state.customPool.length;i++){
+    var w = state.customPool[i];
+    if(q && String(w.w).toLowerCase().indexOf(q)<0 && String(w.m||'').toLowerCase().indexOf(q)<0) continue;
+    items.push({w:w, i:i});
+  }
+  items.sort(function(a,b){ return String(a.w.w).localeCompare(String(b.w.w)); });
+  if(!items.length){
+    box.innerHTML = '<div class="note">'+(q?'没有匹配的自定义词':'还没导入自定义词，在下面粘贴词表导入')+'</div>';
+    return;
+  }
+  box.innerHTML = items.slice(0,60).map(function(o){
+    var w = o.w;
+    return '<div class="witem" data-cidx="'+o.i+'"><div class="top">'
+      + '<span class="w">'+esc(w.w)+'</span><span class="st">'+esc(w.p||'')+'</span></div>'
+      + '<div class="m">'+esc(w.m||'')+'</div><div class="ops">'
+      + '<button data-wo="speak">朗读</button>'
+      + '<button data-wo="delCustom">删除</button></div></div>';
+  }).join('');
+  if(items.length>60) box.innerHTML += '<div class="note">仅显示前 60 条，用搜索框缩小范围</div>';
+}
+// 已学单词的进度管理，与自定义词库分开
+function renderLearnedList(q){
+  var box = document.getElementById('learnedList');
   if(!box) return;
   q = (q||'').toLowerCase();
   var cards = state.cards;
@@ -1950,14 +2092,14 @@ function renderWordList(q){
     return !q || String(c.w).toLowerCase().indexOf(q)>=0 || String(c.m).indexOf(q)>=0;
   });
   items.sort(function(a,b){ return String(a.w).localeCompare(String(b.w)); });
-  if(!items.length){ box.innerHTML='<div class="note">没有匹配的词</div>'; return; }
+  if(!items.length){ box.innerHTML='<div class="note">没有匹配的已学词</div>'; return; }
   box.innerHTML = items.slice(0,60).map(function(c){
     var st = c.state==='new' ? '未复习' : (c.dueAt<=Date.now() ? '待复习' : FSRS.humanizeDuration(c.dueAt-Date.now())+'后');
     return '<div class="witem" data-word="'+esc(cardKey(c.w))+'"><div class="top">'
       + '<span class="w">'+esc(c.w)+'</span><span class="st">'+st+'</span></div>'
       + '<div class="m">'+esc(c.m)+'</div><div class="ops">'
-      + '<button data-wo="toggle">'+(c.enabled===false?'启用':'停用')+'</button>'
-      + '<button data-wo="delete">删除进度</button></div></div>';
+      + '<button data-lo="toggle">'+(c.enabled===false?'启用':'停用')+'</button>'
+      + '<button data-lo="delete">删除进度</button></div></div>';
   }).join('');
   if(items.length>60) box.innerHTML += '<div class="note">仅显示前 60 条，用搜索框缩小范围</div>';
 }
@@ -2095,7 +2237,14 @@ document.addEventListener('click', function(e){
     var name = segBtn.parentElement.dataset.seg;
     var val = segBtn.dataset.val;
     if(name==='dailyNew') state.settings.dailyNew = parseInt(val,10);
-    else if(name==='retention') state.settings.retention = parseFloat(val);
+    else if(name==='retention'){
+      var oldR = Number(state.settings.retention)||0.9, newR = parseFloat(val);
+      if(newR !== oldR){
+        var moved = rescheduleForRetention(newR);
+        state.settings.retention = newR;
+        toast('已按 '+Math.round(newR*100)+'% 重排 '+moved+' 个已学词');
+      }
+    }
     else if(name==='accent') state.settings.accent = val;
     else if(name==='hidePh') state.settings.hidePh = val==='1';
     else if(name==='autoSpeak') state.settings.autoSpeak = val==='1';
@@ -2107,15 +2256,31 @@ document.addEventListener('click', function(e){
   if(tabBtn){ tab=tabBtn.dataset.tab; renderSheet(); return; }
   var wo = e.target.closest('[data-wo]');
   if(wo){
-    var key = wo.closest('[data-word]').dataset.word;
-    if(wo.dataset.wo==='toggle'){
+    var row = wo.closest('[data-cidx]');
+    var w = row ? state.customPool[parseInt(row.dataset.cidx,10)] : null;
+    if(!w) return;
+    if(wo.dataset.wo==='speak') speak(w.w);
+    else{
+      state.customPool.splice(parseInt(row.dataset.cidx,10),1);
+      resetPendingNew(); saveNow(); buildSession(); next(); renderSheet();
+      toast('已从自定义词库删除 '+w.w);
+    }
+    return;
+  }
+  var lo = e.target.closest('[data-lo]');
+  if(lo){
+    var key = lo.closest('[data-word]').dataset.word;
+    if(lo.dataset.lo==='toggle'){
       state.cards[key].enabled = state.cards[key].enabled===false;
       toast(state.cards[key].enabled?'已启用':'已停用，不再出现在队列');
     }else{
       delete state.cards[key];
       toast('已删除该词的复习进度');
     }
-    saveNow(); renderWordList(document.getElementById('wsearch').value); return;
+    saveNow();
+    var ls = document.getElementById('learnedSearch');
+    renderLearnedList(ls ? ls.value : '');
+    return;
   }
   var b = e.target.closest('[data-action]');
   if(!b) return;
@@ -2142,6 +2307,8 @@ document.addEventListener('click', function(e){
   else if(a==='backWord') backWord();
   else if(a==='closePeek') closePeek();
   else if(a==='heatCell') showHeatCell(b);
+  else if(a==='openWordSet') openWordSet(b.dataset);
+  else if(a==='closeWordSet') document.getElementById('wordSetPanel').classList.add('hidden');
   else if(a==='openConfusion') openConfusion();
   else if(a==='closeConfusion') closeConfusion();
   else if(a==='clearMistakes') clearMistakes();
@@ -2226,6 +2393,7 @@ document.addEventListener('click', function(e){
 document.addEventListener('input', function(e){
   if(e.target.id==='planInput') syncQuick();
   if(e.target.id==='wsearch') renderWordList(e.target.value);
+  if(e.target.id==='learnedSearch') renderLearnedList(e.target.value);
   if(e.target.dataset && e.target.dataset.role==='bookSearch'){
     bookQuery = e.target.value;
     refreshBookGrid();   // 只换网格，搜索框和焦点都不动

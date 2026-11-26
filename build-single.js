@@ -16,6 +16,7 @@ const stub = [
   '/* 单文件版加载器：词库与例句已内联在本文件中，不走网络 */',
   '(function(){',
   '  var st={loaded:true,source:"内置",books:true,examples:true};',
+  '  window.__memoStandalone=true;',
   '  window.__memoDataStatus=st;',
   '  window.__memoLoadData=function(force,cb){',
   '    if(typeof force==="function"){ cb=force; force=false; }',
