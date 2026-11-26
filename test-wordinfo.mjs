@@ -9,15 +9,26 @@ const edge=spawn(EDGE,['--headless=new','--disable-gpu','--no-first-run',`--remo
 try{let u;for(let i=0;i<60;i++){try{const r=await fetch(`http://127.0.0.1:${PORT}/json/list`);const pg=(await r.json()).find(x=>x.type==='page');if(pg){u=pg.webSocketDebuggerUrl;break}}catch{}await sleep(300)}
 ws=new WebSocket(u);await new Promise((r,j)=>{ws.onopen=r;ws.onerror=j});ws.onmessage=e=>{const m=JSON.parse(e.data);if(m.id&&p.has(m.id)){p.get(m.id)(m.result);p.delete(m.id)}};
 await cmd('Runtime.enable');await sleep(2000);await ev(`localStorage.removeItem('nixiang.memo.v1')`);await cmd('Page.reload');await sleep(2000);
-console.log('\n[1] 点单词打开记忆档案');
-await ev(`document.querySelector('[data-action="wordInfo"]').click()`);await sleep(150);
+console.log('\n[1] 未作答时点单词不打开档案');
+await ev(`document.getElementById('toast').textContent='';
+  document.querySelector('[data-action="wordLocked"]').click()`);await sleep(150);
 let s=await ev(`({open:!document.getElementById('wordPanel').classList.contains('hidden'),
+  toast:document.getElementById('toast').textContent,
+  hint:!!document.querySelector('.word-info-link')})`);
+ck('未答时点单词不打开档案',s.open===false,s);
+ck('给出提示',/先作答/.test(s.toast),s.toast);
+ck('未答时不显示档案入口',s.hint===false,s.hint);
+
+console.log('\n[2] 作答后点单词打开记忆档案');
+await ev(`document.querySelector('[data-action="quickRate"][data-g="3"]').click()`);await sleep(180);
+await ev(`document.querySelector('[data-action="wordInfo"]').click()`);await sleep(150);
+s=await ev(`({open:!document.getElementById('wordPanel').classList.contains('hidden'),
   cells:document.querySelectorAll('.wc-cell').length,
   text:document.getElementById('wordCard').textContent})`);
 ck('档案面板打开',s.open===true);
 ck('显示 6 项记忆指标',s.cells===6,s.cells);
 ck('含稳定性/难度/复习次数',['记忆稳定性','难度','复习次数','遗忘次数','当前状态','此刻记得'].every(k=>s.text.includes(k)));
-console.log('\n[2] 关闭档案');
+console.log('\n[3] 关闭档案');
 await ev(`document.querySelector('[data-action="closeWordInfo"]').click()`);await sleep(100);
 s=await ev(`({open:!document.getElementById('wordPanel').classList.contains('hidden')})`);
 ck('关闭成功',s.open===false);

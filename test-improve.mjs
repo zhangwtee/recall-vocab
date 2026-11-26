@@ -106,6 +106,7 @@ try {
   await fresh();
   ck('换天不保留临时上限', (await ev(`(function(){var s=JSON.parse(localStorage.getItem('nixiang.memo.v1'));
     var k=Object.keys(s.dailyLog)[0];return s.dailyLog[k].cap==null;})()`)) === true);
+  await click('[data-action="quickRate"][data-g="3"]');
   await click('.word');
   ck('单词档案有熟知入口', !!(await ev(`document.querySelector('[data-action="toggleFamiliar"]')`)));
   const familiarWord = await ev(`document.querySelector('.wc-word').textContent`);

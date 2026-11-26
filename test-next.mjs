@@ -37,6 +37,7 @@ try{
     state:'new',stability:0,difficulty:0,reps:0,lapses:0,dueAt:Date.now()-1000,
     lastReview:0,enabled:true,addedAt:Date.now(),note:''}}});
   await load(st1);
+  await ev(`document.querySelector('[data-action="quickRate"][data-g="2"]').click()`);await sleep(160);
   await ev(`document.querySelector('[data-action="wordInfo"]').click()`);await sleep(160);
   let s=await ev(`({mean:document.getElementById('meanInput').value,
     hasAlt:!!document.getElementById('altInput')})`);
@@ -51,6 +52,9 @@ try{
   ck('补充义项按分号拆开',s.alt.length===2&&s.alt[1]==='第三个意思',s.alt);
   ck('档案立即显示修正后的释义',s.shown==='n.真正的意思',s.shown);
   await ev(`document.querySelector('[data-action="closeWordInfo"]').click()`);
+  // 确认后撤销，让同一个词回到未作答状态，卡片上的修正仍保留
+  await ev(`document.querySelector('[data-action="confirm"]').click()`);await sleep(150);
+  await ev(`document.querySelector('[data-action="undoRating"]').click()`);await sleep(150);
   await ev(`(function(){var i=document.getElementById('typeInput');i.value='真正的意思';
     i.dispatchEvent(new Event('input',{bubbles:true}));
     document.querySelector('[data-action="submitInput"]').click()})()`);await sleep(180);

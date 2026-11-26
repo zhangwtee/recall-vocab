@@ -39,6 +39,7 @@ try{
   await ev(`document.querySelector('[data-action="confirm"]').click()`);await sleep(150);
 
   console.log('\n[3] 助记笔记：档案编辑 + 反馈显示');
+  await ev(`document.querySelector('[data-action="quickRate"][data-g="3"]').click()`);await sleep(150);
   await ev(`document.querySelector('[data-action="wordInfo"]').click()`);await sleep(150);
   s=await ev(`({hasInput:!!document.getElementById('noteInput'),hasBtn:!!document.querySelector('[data-action="saveNote"]')})`);
   ck('档案有助记输入框',s.hasInput===true);

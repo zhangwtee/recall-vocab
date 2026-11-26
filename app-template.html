@@ -101,6 +101,11 @@ main{flex:1;min-height:0;display:flex;flex-direction:column;padding:12px 16px;
 .word{font-size:calc(var(--word-size)*var(--fs));font-weight:500;letter-spacing:-1px;line-height:1.15;
   text-align:center;word-break:break-word;margin-bottom:12px;cursor:pointer}
 .word:hover{color:var(--blue)}
+.word.locked{cursor:default}
+.word.locked:hover{color:var(--fg)}
+.word-info-link{margin-left:auto;border:0;background:transparent;color:var(--dim2);
+  font-size:calc(11px*var(--fs));cursor:pointer;padding:4px 0;white-space:nowrap}
+.word-info-link:hover{color:var(--blue)}
 .spell-sub{font-size:calc(var(--excn-size)*var(--fs));color:var(--dim2);text-align:center;margin-bottom:8px;letter-spacing:1px}
 .spell-prompt{font-size:calc(var(--prompt-size)*var(--fs));font-weight:500;line-height:1.5;
   text-align:center;word-break:break-word;margin-bottom:10px}
@@ -1176,10 +1181,13 @@ function stage(){
   var head = spelling
     ? '<div class="spell-sub">看中文，拼出英文</div>'
       + '<div class="spell-prompt">'+esc(meaningItems(c.m).join(' / '))+'</div>'
-    : '<div class="word" data-action="wordInfo" title="查看记忆档案">'+esc(c.w)+'</div>'
+    : '<div class="word'+(feedback?'':' locked')+'" data-action="'+(feedback?'wordInfo':'wordLocked')
+      + '" title="'+(feedback?'查看记忆档案':'回答后查看记忆档案')+'">'+esc(c.w)+'</div>'
       + '<div class="phonetic">'+(ph?'<span>'+esc(ph)+'</span>':'<span></span>')
       + '<button class="speak" data-action="speak" title="朗读" aria-label="朗读"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg></button>'
-      + accentChip() + '</div>';
+      + accentChip()
+      + (feedback ? '<button class="word-info-link" data-action="wordInfo" title="查看记忆档案">档案 ›</button>' : '')
+      + '</div>';
   var html = '<div class="card">' + head + '<div class="divider"></div>';
 
   if(!feedback){
@@ -2076,6 +2084,7 @@ function resetMeaning(){
 // 单词记忆档案
 function openWordInfo(){
   if(!current) return;
+  if(!feedback){ toast('先作答，再看这个词'); return; }
   var c = current, now = Date.now(), DAY = 86400000;
   var st = c.stability||0, diff = c.difficulty||0;
   var elapsed = c.lastReview ? Math.max(0,(now-c.lastReview)/DAY) : 0;
@@ -2273,7 +2282,7 @@ document.addEventListener('click', function(e){
     if(speakLongFired){ speakLongFired=false; return; }
     speak(b.dataset.text);
   }
-  else if(a==='wordInfo') openWordInfo();
+  else if(a==='wordInfo' || a==='wordLocked') openWordInfo();
   else if(a==='closeWordInfo') closeWordInfo();
   else if(a==='toggleFamiliar') toggleFamiliar();
   else if(a==='saveNote'){
