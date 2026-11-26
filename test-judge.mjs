@@ -2,14 +2,17 @@
 import fs from 'node:fs';
 const html = fs.readFileSync('index.html','utf8');
 // 从最终产物里抽出判分相关函数
-const names = ['stripPos','meaningItems','normInput','editDist','stripMod','antonymClash','similarity','judge'];
+const names = ['sameSynonym','stripPos','meaningItems','normInput','editDist','stripMod','antonymClash','similarity','judge'];
 const src = names.map(n => {
   const re = new RegExp('function\\s+' + n + '\\s*\\([^)]*\\)\\s*\\{[\\s\\S]*?\\n\\}', 'm');
   const m = html.match(re);
   if (!m) throw new Error('未找到函数 ' + n);
   return m[0];
 }).join('\n');
-const mod = new Function(src + '\nreturn {judge,meaningItems,stripPos,similarity};')();
+// 同义词组是判分用到的常量，也要一起带进沙箱
+const syn = html.match(/var SYN_GROUPS = \[[\s\S]*?\n\];/);
+if (!syn) throw new Error('未找到 SYN_GROUPS');
+const mod = new Function(syn[0] + '\n' + src + '\nreturn {judge,meaningItems,stripPos,similarity};')();
 const {judge, meaningItems} = mod;
 
 let pass=0, fail=0;
@@ -64,6 +67,13 @@ check('n.能力；能耐，本领', '能力，本事', 3, '逗号分隔的任一
 check('n.能力；能耐，本领', '能力，懒惰', 3, '有一段命中就算对');
 check('ad.其它，另外 a.别的', '其他', 3, '「其它/其他」按同一词处理');
 check('ad.其它，另外 a.别的', '别的', 3, '词性分隔后独立义项');
+
+console.log('\n[8] 真机反馈里的同义误判');
+check('n.标志；代金券 adj.象征性的；装模作样的', '代币', 3, 'token 代币=代金券');
+check('a.必不可少的，必需的', '不可或缺的', 3, 'indispensable 同义');
+check('n.全体船员', '一群懂技术的人群', 1, 'crew 乱猜不能算对', ['一起工作']);
+check('vt.达到(目的)；完成', '接近靠近方法途径', 1, 'accomplish 不能认成 approach', ['实现']);
+check('n.闪电，闪电放电', '闪电', 3, 'lightning');
 
 console.log('\n────────────────────────');
 console.log(`通过 ${pass} / 失败 ${fail}`);

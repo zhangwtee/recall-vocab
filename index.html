@@ -16,6 +16,10 @@
   --blue:#6ea8fe; --blue2:#4b8ef5;
   --green:#4ade80; --yellow:#fbbf24; --red:#f87171;
   --radius:16px;
+  /* 字号倍率由设置统一控制；内容区都用变量，改一处整页跟着变 */
+  --fs:1; --word-size:clamp(38px,10vw,60px); --prompt-size:clamp(22px,5.6vw,32px);
+  --mean-size:19px; --ph-size:16px; --ex-size:14px; --excn-size:12px;
+  --input-size:17px; --verdict-size:15px;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);
@@ -94,44 +98,48 @@ main{flex:1;min-height:0;display:flex;flex-direction:column;padding:12px 16px;
   overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
 .card{width:100%;max-width:520px;margin:auto;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
   padding:32px 24px 24px;display:flex;flex-direction:column;align-items:center}
-.word{font-size:clamp(38px,10vw,60px);font-weight:500;letter-spacing:-1px;line-height:1.15;
+.word{font-size:calc(var(--word-size)*var(--fs));font-weight:500;letter-spacing:-1px;line-height:1.15;
   text-align:center;word-break:break-word;margin-bottom:12px;cursor:pointer}
 .word:hover{color:var(--blue)}
-.spell-sub{font-size:12px;color:var(--dim2);text-align:center;margin-bottom:8px;letter-spacing:1px}
-.spell-prompt{font-size:clamp(22px,5.6vw,32px);font-weight:500;line-height:1.5;
+.spell-sub{font-size:calc(var(--excn-size)*var(--fs));color:var(--dim2);text-align:center;margin-bottom:8px;letter-spacing:1px}
+.spell-prompt{font-size:calc(var(--prompt-size)*var(--fs));font-weight:500;line-height:1.5;
   text-align:center;word-break:break-word;margin-bottom:10px}
-.peek-mean{width:100%;text-align:center;font-size:19px;line-height:1.7;margin-bottom:12px}
-.peek-alt{width:100%;text-align:center;font-size:13px;color:var(--dim);line-height:1.6;margin-bottom:12px}
-.phonetic{display:flex;align-items:center;gap:8px;color:var(--dim);font-size:16px;min-height:28px}
+.peek-mean{width:100%;text-align:center;font-size:calc(var(--mean-size)*var(--fs));line-height:1.7;margin-bottom:12px}
+.peek-alt{width:100%;text-align:center;font-size:calc(var(--ex-size)*var(--fs));color:var(--dim);line-height:1.6;margin-bottom:12px}
+.phonetic{display:flex;align-items:center;justify-content:center;gap:8px;color:var(--dim);
+  font-size:calc(var(--ph-size)*var(--fs));min-height:28px}
 .speak{border:0;background:var(--card2);color:var(--blue);width:36px;height:36px;border-radius:50%;
   font-size:16px;cursor:pointer;display:grid;place-items:center;flex:none}
 .speak:active{transform:scale(.97)}
-.example{margin-top:12px;color:var(--dim);font-size:14px;text-align:center;line-height:1.6;max-width:100%}
+.accent-chip{border:1px solid var(--line);background:transparent;color:var(--dim);
+  border-radius:20px;padding:4px 9px;font-size:calc(11px*var(--fs));cursor:pointer;white-space:nowrap}
+.accent-chip:hover{color:var(--blue);border-color:var(--blue)}
+.example{margin-top:12px;color:var(--dim);font-size:calc(var(--ex-size)*var(--fs));text-align:center;line-height:1.6;max-width:100%}
 .examples{margin:12px 0}
 .ex-title{flex:none;font-size:10px;line-height:1.5;color:var(--dim2);
   border:1px solid var(--line);border-radius:4px;padding:0 4px;margin-right:1px;letter-spacing:0}
 .ex-row{background:var(--card2);border:1px solid var(--line);border-radius:10px;
   padding:12px;margin-bottom:8px}
-.ex-en{font-size:14px;line-height:1.5;display:flex;align-items:flex-start;gap:8px}
+.ex-en{font-size:calc(var(--ex-size)*var(--fs));line-height:1.5;display:flex;align-items:flex-start;gap:8px}
 .ex-en .ex-speak{margin-left:auto;flex:none}
 .ex-speak{background:none;border:0;color:var(--dim);font-size:13px;cursor:pointer;padding:2px 4px}
 .ex-speak:hover{color:var(--blue)}
-.ex-cn{font-size:12px;color:var(--dim);margin-top:4px;line-height:1.5}
+.ex-cn{font-size:calc(var(--excn-size)*var(--fs));color:var(--dim);margin-top:4px;line-height:1.5}
 .divider{width:100%;height:1px;background:var(--line);margin:24px 0 20px}
-.hint{color:var(--dim2);font-size:13px;text-align:center;line-height:1.7;margin-bottom:20px}
+.hint{color:var(--dim2);font-size:calc(13px*var(--fs));text-align:center;line-height:1.7;margin-bottom:20px}
 .reveal{width:100%;padding:16px;border:0;border-radius:10px;background:var(--blue);color:#0b1220;
   font-size:16px;font-weight:600;cursor:pointer;transition:background .15s,transform .12s}
 .reveal:hover{background:#7db4ff}
 .reveal:active{transform:scale(.98)}
-.meaning{width:100%;text-align:center;font-size:19px;line-height:1.7;margin-bottom:24px;
+.meaning{width:100%;text-align:center;font-size:calc(var(--mean-size)*var(--fs));line-height:1.7;margin-bottom:24px;
   animation:fade .22s ease}
 @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 .ratings{width:100%;display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .rate{padding:12px 4px;border:1px solid var(--line);border-radius:12px;background:var(--card2);
-  color:var(--fg);font-size:14px;font-weight:500;cursor:pointer;display:flex;flex-direction:column;
+  color:var(--fg);font-size:calc(14px*var(--fs));font-weight:500;cursor:pointer;display:flex;flex-direction:column;
   align-items:center;gap:4px;transition:background .15s,transform .12s}
 .rate:active{transform:scale(.98)}
-.rate small{font-size:11px;font-weight:400;color:var(--dim2)}
+.rate small{font-size:calc(11px*var(--fs));font-weight:400;color:var(--dim2)}
 .rate[data-g="1"]:active{background:rgba(248,113,113,.18)}
 .rate[data-g="2"]:active{background:rgba(251,191,36,.18)}
 .rate[data-g="3"]:active{background:rgba(74,222,128,.18)}
@@ -144,7 +152,7 @@ main{flex:1;min-height:0;display:flex;flex-direction:column;padding:12px 16px;
 .mode-switch button.on{background:var(--card2);color:var(--blue);border-color:var(--blue)}
 .typebox{width:100%}
 .type-input{width:100%;padding:16px 12px;background:var(--card2);border:1px solid var(--line);
-  border-radius:10px;color:var(--fg);font-size:17px;text-align:center;outline:none;
+  border-radius:10px;color:var(--fg);font-size:calc(var(--input-size)*var(--fs));text-align:center;outline:none;
   transition:border-color .15s}
 .type-input:focus{border-color:var(--blue)}
 .type-input::placeholder{color:var(--dim2)}
@@ -154,14 +162,14 @@ main{flex:1;min-height:0;display:flex;flex-direction:column;padding:12px 16px;
   font-size:12px;cursor:pointer;margin-top:12px}
 .giveup:hover{color:var(--dim)}
 /* 判定条：单独一条带底色，不跟上面的分隔线、下面的对比框糊在一起 */
-.verdict{width:100%;text-align:center;font-size:15px;font-weight:500;line-height:1.45;
+.verdict{width:100%;text-align:center;font-size:calc(var(--verdict-size)*var(--fs));font-weight:500;line-height:1.45;
   padding:8px 12px;border-radius:8px;margin:0 0 12px;background:var(--card2);color:var(--dim)}
 .verdict.right{color:var(--green);background:rgba(74,222,128,.10)}
 .verdict.near{color:var(--yellow);background:rgba(251,191,36,.10)}
 .verdict.wrong{color:var(--red);background:rgba(248,113,113,.10)}
 .verdict.giveup{color:var(--dim)}
 .compare{width:100%;background:var(--card2);border-radius:8px;padding:12px 16px;margin-bottom:16px}
-.compare .line{display:flex;gap:10px;font-size:14px;line-height:1.65;padding:3px 0}
+.compare .line{display:flex;gap:10px;font-size:calc(14px*var(--fs));line-height:1.65;padding:3px 0}
 .compare .line .k{color:var(--dim2);flex:0 0 3.6em;white-space:nowrap}
 .compare .line .v{color:var(--fg);word-break:break-all}
 /* 底部操作栏：间距用 margin 给，不依赖 flex gap（老 WebView 上 gap 不生效会贴在一起） */
@@ -210,8 +218,8 @@ footer span{white-space:nowrap}
 .row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 0;
   border-bottom:1px solid var(--line)}
 .row:last-child{border-bottom:0}
-.row .label{font-size:14px}
-.row .sub{font-size:11px;color:var(--dim2);margin-top:3px;line-height:1.5}
+.row .label{font-size:calc(14px*var(--fs))}
+.row .sub{font-size:calc(11px*var(--fs));color:var(--dim2);margin-top:3px;line-height:1.5}
 .seg{display:flex;background:var(--card2);border-radius:9px;padding:3px;flex:none}
 .seg button{border:0;background:transparent;color:var(--dim);padding:7px 11px;border-radius:7px;
   font-size:12px;cursor:pointer;white-space:nowrap}
@@ -223,7 +231,7 @@ footer span{white-space:nowrap}
 textarea{width:100%;min-height:130px;background:var(--card);color:var(--fg);border:1px solid var(--line);
   border-radius:10px;padding:12px;font-size:13px;font-family:ui-monospace,Menlo,Consolas,monospace;
   resize:vertical;line-height:1.6}
-.note{font-size:12px;color:var(--dim);line-height:1.8;margin:10px 0 4px}
+.note{font-size:calc(12px*var(--fs));color:var(--dim);line-height:1.8;margin:10px 0 4px}
 .note code{background:var(--card2);padding:2px 5px;border-radius:4px;font-size:11px}
 .wordcard{width:88%;max-width:400px;max-height:82vh;overflow-y:auto;background:var(--card);
   border:1px solid var(--line);border-radius:16px;padding:22px;animation:pop .18s ease}
@@ -343,23 +351,17 @@ kbd{background:var(--card2);border:1px solid var(--line);border-radius:4px;paddi
 
 /* 平板 / 宽屏：卡片和内容适度放大，不把手机尺寸硬拉到大屏上 */
 @media (min-width:700px){
+  :root{--word-size:clamp(52px,7vw,84px);--prompt-size:clamp(28px,4.5vw,42px);
+    --mean-size:22px;--ph-size:18px;--ex-size:15px;--excn-size:13px;
+    --input-size:19px;--verdict-size:16px}
   #app,#dock{max-width:900px}
   header{padding:20px 28px 10px}
   .bar{margin:0 28px}
   main{padding:18px 24px}
   footer{padding:10px 28px 18px}
   .card{max-width:680px;padding:38px 34px 30px}
-  .word{font-size:clamp(52px,7vw,84px)}
-  .spell-prompt{font-size:clamp(28px,4.5vw,42px)}
-  .peek-mean,.meaning{font-size:22px}
-  .hint{font-size:14px}
-  .example{font-size:15px}
-  .ex-en{font-size:15px}
-  .ex-cn{font-size:13px}
-  .type-input{font-size:19px;padding:17px 14px}
-  .rate{font-size:15px;padding:16px 4px 14px}
-  .rate small{font-size:12px}
-  .verdict{font-size:16px}
+  .type-input{padding:17px 14px}
+  .rate{padding:16px 4px 14px}
   .sheet{max-width:560px}
   .bp-card{max-width:560px}
   .wordcard{max-width:520px}
@@ -443,10 +445,11 @@ kbd{background:var(--card2);border:1px solid var(--line);border-radius:4px;paddi
         <button data-plan="100">100</button>
       </div>
       <div class="plan-stat">
-        <div><div class="n" id="planNew">0</div><div class="t">今日新词</div></div>
-        <div><div class="n" id="planDue">0</div><div class="t">待复习</div></div>
+        <div><div class="n" id="planNew">0</div><div class="t">已背新词</div></div>
+        <div><div class="n" id="planDue">0</div><div class="t">当前待复习</div></div>
         <div><div class="n" id="planLearned">0</div><div class="t">累计已学</div></div>
       </div>
+      <div class="note" id="planBreak"></div>
       <div class="plan-extra">
         <button data-action="reviewLearned" data-days="1">复习昨天学的</button>
         <button data-action="reviewLearned" data-days="3">复习近 3 天</button>
@@ -847,7 +850,7 @@ function defaults(){
   return {
     version:1,
     settings:{ dailyNew:20, retention:0.9, accent:'en-US', autoSpeak:false,
-               autoSpeakShow:true, hidePh:false, bookId:'cet4', customOn:false, dataBase:'' },
+               autoSpeakShow:true, hidePh:false, bookId:'cet4', customOn:false, dataBase:'', fontScale:1 },
     cards:{}, customPool:[], dailyLog:{}, mistakes:[], createdAt:Date.now()
   };
 }
@@ -916,7 +919,7 @@ function todayKey(){
 }
 function todayLog(){
   var k=todayKey();
-  if(!state.dailyLog[k]) state.dailyLog[k]={neu:0,intro:0,rev:0,again:0,hard:0,good:0};
+  if(!state.dailyLog[k]) state.dailyLog[k]={neu:0,intro:0,rev:0,again:0,hard:0,good:0,plan:0};
   if(state.dailyLog[k].intro==null) state.dailyLog[k].intro = state.dailyLog[k].neu||0;
   return state.dailyLog[k];
 }
@@ -925,7 +928,9 @@ function resetPendingNew(){
   for(var k in state.cards){
     if(state.cards[k].state==='new') delete state.cards[k];
   }
-  todayLog().intro = 0;
+  var lg = todayLog();
+  lg.intro = 0;
+  lg.plan = 0;   // 换词书后按新队列重新定今日计划
 }
 
 // ── 词池 ─────────────────────────────────────────────────
@@ -995,7 +1000,14 @@ function buildSession(){
   }
   session.queue = due.concat(news);
   session.shown = {};
-  session.total = session.queue.length;
+  // 今日计划只在当天第一次排课时定下来。之后重进、切设置都不重算分母，
+  // 否则已学的词被排到未来，分母会越背越小（看着像漏背了）。
+  if(!log.plan){
+    log.plan = session.queue.length + (log.neu||0)+(log.rev||0);
+    log.planNew = news.length; log.planRev = due.length;
+  }
+  log.plan = Math.max(log.plan||0, (log.neu||0)+(log.rev||0));
+  session.total = log.plan;
   session.done = 0;
 }
 // 手动复习：把指定日期学过的词插回今天的队列，不改动它们原定排期
@@ -1024,21 +1036,36 @@ function reviewLearned(days){
   if(!picked.length){ toast('那几天还没有学过的词'); return; }
   picked.sort(function(a,b){ return (a.lastReview||0)-(b.lastReview||0); });
   session.queue = picked.concat(session.queue);
-  session.total = session.done + session.queue.length;
+  var lg = todayLog();
+  lg.plan = Math.max((lg.plan||0) + picked.length, (lg.neu||0)+(lg.rev||0));
+  lg.planRev = (lg.planRev||0) + picked.length;
+  session.total = lg.plan;
   document.getElementById('planPanel').classList.add('hidden');
   header();
   toast('已把 '+picked.length+' 个词插到最前面复习');
 }
+function capNow(log){
+  var dn = state.settings.dailyNew;
+  return Math.max(0, Math.min(dn, log.cap==null ? dn : log.cap));
+}
+// 今日上限变化时只调整「还没引入」的那部分计划，已完成的不倒扣
+function adjustPlanForCap(oldCap, newCap){
+  var lg = todayLog(), intro = lg.intro||0;
+  var delta = Math.max(0,newCap-intro) - Math.max(0,oldCap-intro);
+  lg.plan = Math.max((lg.neu||0)+(lg.rev||0), (lg.plan||0)+delta);
+  lg.planNew = Math.max(0, (lg.planNew||0)+delta);
+}
 function cutToday(n){
-  var log = todayLog();
-  var cur = log.cap == null ? state.settings.dailyNew : log.cap;
-  log.cap = Math.max(0, cur - n);
+  var log = todayLog(), oldCap = capNow(log);
+  log.cap = Math.max(0, oldCap - n);
+  adjustPlanForCap(oldCap, capNow(log));
   saveNow(); buildSession(); next(); renderSheet(); header();
   toast('今天最多背 '+log.cap+' 个新词');
 }
 function resetToday(){
-  var log = todayLog();
+  var log = todayLog(), oldCap = capNow(log);
   delete log.cap;
+  adjustPlanForCap(oldCap, capNow(log));
   saveNow(); buildSession(); next(); renderSheet(); header();
   toast('已恢复今日计划：'+state.settings.dailyNew+' 个新词');
 }
@@ -1263,6 +1290,28 @@ function editDist(a,b){
 // 比较前去掉没有实际意义的虚词，"完全的"和"完全地"应当视为同一个答案；
 // "其它/其他"是同一个词的两种写法，归一到一种
 function stripMod(s){ return String(s==null?'':s).replace(/[的地得了着]/g,'').replace(/其它/g,'其他'); }
+// 教材释义常用同义词，字面不像但确实是同一个意思。这里只收逐字核对过的常见组，
+// 不拿模糊相似度乱认，避免把"接近/方法"认成"完成/达到"。词组都已去掉"的地得"。
+var SYN_GROUPS = [
+  ['代币','代金券','代币券','票券','券'],
+  ['不可或缺','必不可少','不可缺少','不可少','必需','必要','必备'],
+  ['全体船员','船员','全体工作人员','一群工作人员','工作人员','机组人员'],
+  ['完成','实现','达到','达成','做到'],
+  ['标志','标记','记号','标识','象征'],
+  ['象征性','象征','装模作样'],
+  ['闪电','闪电放电','雷电'],
+  ['快速','飞快','迅速','敏捷','快'],
+  ['接近','靠近','邻近','逼近'],
+  ['方法','途径','办法','方式','手段'],
+  ['人群','一群人','一群']
+];
+function sameSynonym(a,b){
+  for(var i=0;i<SYN_GROUPS.length;i++){
+    var g = SYN_GROUPS[i];
+    if(g.indexOf(a)>=0 && g.indexOf(b)>=0) return true;
+  }
+  return false;
+}
 // 反义字只差一个字的，判为完全不匹配：内部/外部、前一/后一 这类不能算"接近"
 function antonymClash(a,b){
   var PAIRS = {'内':'外','外':'内','上':'下','下':'上','前':'后','后':'前','大':'小','小':'大',
@@ -1282,6 +1331,7 @@ function similarity(a,b){
   if(!a||!b) return 0;
   if(antonymClash(a,b)) return 0;
   if(a===b) return 1;
+  if(sameSynonym(a,b)) return 1;
   if(a.indexOf(b)>=0 || b.indexOf(a)>=0){
     var s=Math.min(a.length,b.length), l=Math.max(a.length,b.length);
     return 0.75 + 0.25*(s/l);
@@ -1359,6 +1409,28 @@ function preview(g){
   var ms = FSRS.preview(current, g, Date.now(), {retention:Number(state.settings.retention)||0.9});
   return FSRS.humanizeDuration(ms);
 }
+// 卡片上的口音切换：点一下换口音并立刻重读当前词，设置里的选项同步生效
+function accentChip(){
+  var en = state.settings.accent==='en-GB';
+  return '<button class="accent-chip" data-action="toggleAccent" title="切换美音 / 英音">'
+       + (en?'英音':'美音')+'</button>';
+}
+function applyFontScale(){
+  var v = Number(state.settings.fontScale);
+  if(!isFinite(v) || v<0.9 || v>1.4) v = 1;
+  document.documentElement.style.setProperty('--fs', String(v));
+}
+function toggleAccent(){
+  state.settings.accent = state.settings.accent==='en-US' ? 'en-GB' : 'en-US';
+  var en = state.settings.accent==='en-GB';
+  save();
+  var chips = document.querySelectorAll('[data-action="toggleAccent"]');
+  for(var i=0;i<chips.length;i++) chips[i].textContent = en?'英音':'美音';
+  if(!document.getElementById('panel').classList.contains('hidden')) renderSheet();
+  var w = peekCard ? peekCard.w : (current ? current.w : '');
+  if(w) speak(w);
+  toast(en?'已切英音':'已切美音');
+}
 function stage(){
   var el = document.getElementById('stage');
   var dock = document.getElementById('dock');
@@ -1377,7 +1449,8 @@ function stage(){
       + '<div class="phonetic">'+(pc.p?'<span>'+esc(pc.p)+'</span>':'<span></span>')
       + '<button class="speak" data-action="speakText" data-text="'+esc(pc.w)+'" title="朗读" aria-label="朗读">'
       + '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4V5z"/>'
-      + '<path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg></button></div>'
+      + '<path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg></button>'
+      + accentChip() + '</div>'
       + '<div class="divider"></div>'
       + '<div class="peek-mean">'+esc(pc.m||'')+'</div>'
       + (pc.alt && pc.alt.length ? '<div class="peek-alt">另有 '+esc(pc.alt.join('、'))+'</div>' : '')
@@ -1418,7 +1491,8 @@ function stage(){
       + '<div class="spell-prompt">'+esc(meaningItems(c.m).join(' / '))+'</div>'
     : '<div class="word" data-action="wordInfo" title="查看记忆档案">'+esc(c.w)+'</div>'
       + '<div class="phonetic">'+(ph?'<span>'+esc(ph)+'</span>':'<span></span>')
-      + '<button class="speak" data-action="speak" title="朗读" aria-label="朗读"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg></button></div>';
+      + '<button class="speak" data-action="speak" title="朗读" aria-label="朗读"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg></button>'
+      + accentChip() + '</div>';
   var html = '<div class="card">' + head + '<div class="divider"></div>';
 
   if(!feedback){
@@ -1461,7 +1535,7 @@ function stage(){
         + '<div class="line"><span class="k">'+(feedback.mode==='en'?'正确':'标准')+'</span><span class="v">'+esc(feedback.expected)+'</span></div>'
         + altLine
         + (feedback.matched && v!=='right' && v!=='chosen'
-           ? '<div class="line"><span class="k">命中</span><span class="v">'+esc(feedback.matched)+'</span></div>' : '')
+           ? '<div class="line"><span class="k">'+(v==='near'?'接近项':'最接近')+'</span><span class="v">'+esc(feedback.matched)+'</span></div>' : '')
         + '</div>'
         + '<button class="giveup" data-action="startDrill">再拼一次这个词</button>'
         + (session.history.length ? '<button class="giveup" data-action="backWord">← 回看上一词</button>' : '')
@@ -1529,9 +1603,12 @@ function updateActionArea(){
 function header(){
   document.getElementById('bookLabel').textContent = bookName();
   var log = todayLog();
-  var planned = session.total || (log.neu+log.rev);
-  document.getElementById('pill').textContent = '今日 '+(log.neu+log.rev)+' / '+Math.max(planned,log.neu+log.rev);
-  document.getElementById('barFill').style.width = (planned? Math.min(100,(session.done/planned)*100):0)+'%';
+  var done = (log.neu||0)+(log.rev||0);
+  var planned = Math.max(log.plan||0, done);
+  document.getElementById('pill').textContent = '今日 '+done+' / '+planned;
+  document.getElementById('pill').title = '今日计划 '+planned+' 个：新词 '+(log.planNew||0)
+    +' · 复习 '+(log.planRev||0)+'；已完成 '+done+' 个';
+  document.getElementById('barFill').style.width = (planned? Math.min(100,done/planned*100):0)+'%';
   document.getElementById('statNew').textContent = '新词 '+log.neu;
   document.getElementById('statReview').textContent = '复习 '+log.rev;
   var judged = log.again+log.hard+log.good;
@@ -1627,8 +1704,10 @@ function renderSheet(){
       + '<button class="btn" data-action="saveDailyNew" style="margin:0;flex:1">保存</button></div></div>'
       + '<div class="row"><div><div class="label">目标记忆率</div><div class="sub">越高复习越频繁、间隔越短</div></div>'
       + seg('retention',[['0.85','85%'],['0.9','90%'],['0.95','95%']],String(s.retention))+'</div>'
-      + '<div class="row"><div><div class="label">发音口音</div><div class="sub">依赖系统自带英文语音</div></div>'
+      + '<div class="row"><div><div class="label">发音口音</div><div class="sub">卡片上也能直接点「美音 / 英音」切换</div></div>'
       + seg('accent',[['en-US','美音'],['en-GB','英音']],s.accent)+'</div>'
+      + '<div class="row"><div><div class="label">字体大小</div><div class="sub">单词、释义、例句和输入一起调整</div></div>'
+      + seg('fontScale',[['0.9','小'],['1','标准'],['1.15','大'],['1.3','超大']],String(s.fontScale||1))+'</div>'
       + '<div class="row"><div><div class="label">揭晓前隐藏音标</div><div class="sub">想不起来的线索更少</div></div>'
       + seg('hidePh',[[0,'关'],[1,'开']],s.hidePh?1:0)+'</div>'
       + '<div class="row"><div><div class="label">出现时自动朗读</div>'
@@ -2185,6 +2264,8 @@ function openPlan(){
   document.getElementById('planNew').textContent = log.neu||0;
   document.getElementById('planDue').textContent = due;
   document.getElementById('planLearned').textContent = Object.keys(state.cards).length;
+  document.getElementById('planBreak').textContent = '今日共 '+(log.plan||0)+' 个：计划新词 '+(log.planNew||0)
+    +' · 到期待复习 '+(log.planRev||0)+'；已背新词 '+(log.neu||0)+' · 已复习 '+(log.rev||0)+'。';
   document.getElementById('planPanel').classList.remove('hidden');
   syncQuick();
 }
@@ -2197,7 +2278,9 @@ function syncQuick(){
 function savePlan(){
   var v = parseInt(document.getElementById('planInput').value,10);
   if(!isFinite(v) || v<1 || v>500){ toast('请输入 1 到 500 的数字'); return; }
+  var lg = todayLog(), oldCap = capNow(lg);
   state.settings.dailyNew = v;
+  adjustPlanForCap(oldCap, capNow(lg));
   saveNow();
   buildSession(); next();          // 改大立即补新词，改小今天已引入的不撤
   document.getElementById('planPanel').classList.add('hidden');
@@ -2297,6 +2380,7 @@ document.addEventListener('click', function(e){
       }
     }
     else if(name==='accent') state.settings.accent = val;
+    else if(name==='fontScale'){ state.settings.fontScale = parseFloat(val); applyFontScale(); }
     else if(name==='hidePh') state.settings.hidePh = val==='1';
     else if(name==='autoSpeak') state.settings.autoSpeak = val==='1';
     else if(name==='autoSpeakShow') state.settings.autoSpeakShow = val==='1';
@@ -2336,7 +2420,8 @@ document.addEventListener('click', function(e){
   var b = e.target.closest('[data-action]');
   if(!b) return;
   var a = b.dataset.action;
-  if(a==='speak' && current) speak(current.w);
+  if(a==='toggleAccent') toggleAccent();
+  else if(a==='speak' && current) speak(current.w);
   else if(a==='speakText' && b.dataset.text) speak(b.dataset.text);
   else if(a==='wordInfo') openWordInfo();
   else if(a==='closeWordInfo') closeWordInfo();
@@ -2379,11 +2464,15 @@ document.addEventListener('click', function(e){
   else if(a==='saveDailyNew'){
     var dv = parseInt(document.getElementById('setDailyNew').value,10);
     if(!isFinite(dv)||dv<1||dv>500){ toast('请输入 1 到 500 的数字'); return; }
-    state.settings.dailyNew = dv; saveNow(); buildSession(); next(); renderSheet();
+    var lg0 = todayLog(), oldCap0 = capNow(lg0);
+    state.settings.dailyNew = dv; adjustPlanForCap(oldCap0, capNow(lg0));
+    saveNow(); buildSession(); next(); renderSheet();
     toast('每日新词已设为 '+dv+' 个');
   }
   else if(a==='more'){
-    state.settings.dailyNew += 10; saveNow(); buildSession(); next();
+    var lgm = todayLog(), oldCapm = capNow(lgm);
+    state.settings.dailyNew += 10; adjustPlanForCap(oldCapm, capNow(lgm));
+    saveNow(); buildSession(); next();
   }
   else if(a==='importWords'){
     var txt = document.getElementById('importText').value;
@@ -2540,6 +2629,7 @@ function parseWords(txt){
 // ── 启动 ─────────────────────────────────────────────────
 function bootDone(status){
   if(!bookById(state.settings.bookId) && getBooks().length) state.settings.bookId='cet4';
+  applyFontScale();
   if('speechSynthesis' in window){ try{ speechSynthesis.getVoices(); }catch(e){} }
   buildSession();
   next();

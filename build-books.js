@@ -7,12 +7,20 @@ const RE = /^([A-Za-z][A-Za-z.'\-]*)\s*(?:\[([^\]]*)\])?\s+(.+)$/;
 const POS_RE = /\s+(?:n|v|vt|vi|adj|a|ad|adv|art|prep|conj|pron|int|num|noun|verb|adjective|adverb|exclamation)\.?/;
 const HAS_IPA = /[\u02c8\u02cc\u0250-\u02afːˑɑæəɪɔʊʌɛ]/;
 
+// 原始 PDF 词表里有几个用符号字体编码的音标字符，直接进词库会显示成方框。
+// 这几个码位只在两处出现，按原字体映射回音标；其余私有区字符一律丢掉。
+const PUA_MAP = {0xF067:'ɡ', 0xF063:'k'};
+function cleanText(s){
+  return String(s==null?'':s)
+    .replace(/[\uE000-\uF8FF]/g, function(ch){ return PUA_MAP[ch.codePointAt(0)] || ''; })
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFF0-\uFFFF]/g,'');
+}
 function finish(w, ph, mean){
-  w = String(w||'').trim();
+  w = cleanText(w).trim();
   if (!/^[A-Za-z\u00c0-\u024f][A-Za-z\u00c0-\u024f.'\- ]*$/.test(w) || w.length > 24) return null;
-  mean = String(mean||'').replace(/\[[^\]]*\]/g,'').replace(/\s+/g,' ').trim();
+  mean = cleanText(mean).replace(/\[[^\]]*\]/g,'').replace(/^[\]\)\(\s]+/,'').replace(/\s+/g,' ').trim();
   if (!mean || /^[0-9.\s]*$/.test(mean)) return null;
-  return { w:w.toLowerCase(), p:String(ph||'').trim(), m:mean };
+  return { w:w.toLowerCase(), p:cleanText(ph).trim(), m:mean };
 }
 
 // ── 解析 ─────────────────────────────────────────────────
