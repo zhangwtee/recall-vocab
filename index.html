@@ -101,8 +101,9 @@ main{flex:1;min-height:0;display:flex;flex-direction:column;padding:12px 16px;
 .speak:active{transform:scale(.92)}
 .example{margin-top:14px;color:var(--dim);font-size:14px;text-align:center;line-height:1.6;
   font-style:italic;max-width:100%}
-.examples{margin:14px 0 16px}
-.ex-title{font-size:11px;color:var(--dim2);text-align:center;margin-bottom:8px;letter-spacing:1px}
+.examples{margin:10px 0 12px}
+.ex-title{flex:none;font-size:10px;line-height:1.5;color:var(--dim2);
+  border:1px solid var(--line);border-radius:4px;padding:0 4px;margin-right:1px;letter-spacing:0}
 .ex-row{background:var(--card);border:1px solid var(--line);border-radius:10px;
   padding:10px 12px;margin-bottom:7px}
 .ex-en{font-size:14px;line-height:1.5;display:flex;align-items:flex-start;gap:8px}
@@ -256,14 +257,17 @@ textarea{width:100%;min-height:130px;background:var(--card);color:var(--fg);bord
 .hm-wrap{overflow-x:auto;padding-bottom:4px}
 .hm-grid{display:grid;grid-template-rows:repeat(7,1fr);grid-auto-flow:column;
   grid-auto-columns:13px;gap:3px;width:max-content}
-.hm-cell{width:13px;height:13px;border-radius:3px;background:var(--card2);
-  border:1px solid var(--line);flex:none}
+.hm-cell{-webkit-appearance:none;appearance:none;padding:0;
+  width:13px;height:13px;border-radius:3px;background:var(--card2);
+  border:1px solid var(--line);flex:none;cursor:pointer}
 .hm-cell.lv1{background:#1d3a5c;border-color:#1d3a5c}
 .hm-cell.lv2{background:#2d5f96;border-color:#2d5f96}
 .hm-cell.lv3{background:#4b8ef5;border-color:#4b8ef5}
 .hm-cell.lv4{background:#7db4ff;border-color:#7db4ff}
 .hm-cell.future{opacity:.25}
-.hm-foot{display:flex;align-items:center;gap:4px;margin-top:10px;font-size:11px;color:var(--dim2)}
+.hm-grid .hm-cell.sel{outline:2px solid var(--blue);outline-offset:1px}
+.hm-detail{min-height:32px;margin-top:9px;font-size:11px;color:var(--dim);line-height:1.5}
+.hm-foot{display:flex;align-items:center;gap:4px;margin-top:6px;font-size:11px;color:var(--dim2)}
 .vocab-box{display:flex;align-items:center;gap:18px}
 .vocab-detail{flex:1;font-size:12px;line-height:1.9}
 .vocab-detail b{font-size:15px;color:var(--fg)}
@@ -1426,12 +1430,15 @@ function renderExamples(word, card){
   if(!ex || !ex.length) return '';
   var rows = '';
   for(var i=0;i<ex.length;i++){
+    // 标签放在第一个例句框的左上角，不单独占一行，省出手机竖屏的高度
     rows += '<div class="ex-row">'
-      + '<div class="ex-en">'+esc(ex[i][0])
+      + '<div class="ex-en">'
+      + (i===0 ? '<span class="ex-title">例句</span>' : '')
+      + '<span>'+esc(ex[i][0])+'</span>'
       + '<button class="ex-speak" data-action="speakText" data-text="'+esc(ex[i][0])+'" title="朗读">🔊</button></div>'
       + '<div class="ex-cn">'+esc(ex[i][1])+'</div></div>';
   }
-  return '<div class="examples"><div class="ex-title">例句</div>'+rows+'</div>';
+  return '<div class="examples">'+rows+'</div>';
 }
 // 输入区随内容切换：有字→提交判分，没字→三档按钮
 function updateActionArea(){
@@ -1608,8 +1615,8 @@ function statsData(){
   }
   return { cards:cards, future:future, buckets:buckets };
 }
-function forgettingCurveSVG(){
-  // FSRS 遗忘曲线：横轴 elapsed/S（0~3），纵轴 R
+function forgettingCurveSVG(cards){
+  // FSRS 遗忘曲线：横轴 elapsed/S（0~3），纵轴 R；再叠加真实词条的位置
   var W = 320, H = 150, pad = {l:34,r:12,t:12,b:26};
   var iw = W-pad.l-pad.r, ih = H-pad.t-pad.b;
   var FACTOR = 19/81, DECAY = -0.5;
@@ -1621,6 +1628,29 @@ function forgettingCurveSVG(){
   }
   // 90% 记忆线
   var y90 = pad.t + (1-0.9)*ih;
+  // 把学过的词按 elapsed/S 分桶，绿色点的位置随真实复习情况变化
+  var now = Date.now(), DAY = 86400000, bins = {}, plotted = 0;
+  for(var c=0;c<(cards||[]).length;c++){
+    var card = cards[c];
+    if(!(card.stability>0) || !card.lastReview) continue;
+    var elapsed = (now-card.lastReview)/DAY;
+    if(elapsed<0) continue;
+    var xr = elapsed/card.stability;
+    if(xr<0 || xr>3) continue;
+    var bi = Math.min(11, Math.floor(xr/3*12));
+    if(!bins[bi]) bins[bi] = {sx:0, sr:0, n:0};
+    bins[bi].sx += xr; bins[bi].sr += FSRS.retrievability(elapsed, card.stability); bins[bi].n++;
+    plotted++;
+  }
+  var dots = '';
+  Object.keys(bins).forEach(function(k){
+    var b = bins[k], x = b.sx/b.n, r = b.sr/b.n;
+    var cx = pad.l + x/3*iw, cy = pad.t + (1-r)*ih;
+    var rad = Math.min(6, 2 + Math.sqrt(b.n)*0.7);
+    dots += '<circle cx="'+cx.toFixed(1)+'" cy="'+cy.toFixed(1)+'" r="'+rad.toFixed(1)
+      + '" fill="#4ade80" fill-opacity="0.85" stroke="#0f1115" stroke-width="0.6">'
+      + '<title>'+b.n+' 个词 · 平均记得 '+Math.round(r*100)+'%</title></circle>';
+  });
   var svg = '<svg viewBox="0 0 '+W+' '+H+'" xmlns="http://www.w3.org/2000/svg">'
     + '<line x1="'+pad.l+'" y1="'+(pad.t+ih)+'" x2="'+(W-pad.r)+'" y2="'+(pad.t+ih)+'" stroke="#303744" stroke-width="1"/>'
     + '<line x1="'+pad.l+'" y1="'+pad.t+'" x2="'+pad.l+'" y2="'+(pad.t+ih)+'" stroke="#303744" stroke-width="1"/>'
@@ -1629,6 +1659,7 @@ function forgettingCurveSVG(){
     + '<text x="'+(pad.l-6)+'" y="'+(pad.t+4)+'" fill="#6b7482" font-size="9" text-anchor="end">100</text>'
     + '<text x="'+(pad.l-6)+'" y="'+(pad.t+ih+3)+'" fill="#6b7482" font-size="9" text-anchor="end">0</text>'
     + '<polyline points="'+pts.join(' ')+'" fill="none" stroke="#6ea8fe" stroke-width="2"/>'
+    + dots
     + '<circle cx="'+(pad.l+iw/3).toFixed(1)+'" cy="'+(pad.t+(1-R(1))*ih).toFixed(1)+'" r="3.5" fill="#6ea8fe"/>'
     + '<text x="'+(pad.l+iw/3).toFixed(1)+'" y="'+(pad.t+(1-R(1))*ih-9).toFixed(1)+'" fill="#9aa3b2" font-size="9" text-anchor="middle">1×S</text>'
     + '<text x="'+(pad.l+iw/2)+'" y="'+(H-6)+'" fill="#6b7482" font-size="9" text-anchor="middle">距上次复习时间 ÷ 记忆稳定性 S</text>'
@@ -1660,6 +1691,11 @@ function renderStats(el){
   var learned = d.cards.length;
   var mastered = d.cards.filter(function(c){ return c.stability>=21; }).length;
   var due = d.cards.filter(function(c){ return c.dueAt<=now; }).length;
+  var curveN = d.cards.filter(function(c){
+    if(!(c.stability>0) || !c.lastReview) return false;
+    var x = (now-c.lastReview)/86400000/c.stability;
+    return x>=0 && x<=3;
+  }).length;
   // 连续打卡天数
   var streak = 0, cur = new Date(); cur.setHours(0,0,0,0);
   for(var i=0;i<400;i++){
@@ -1682,10 +1718,14 @@ function renderStats(el){
     + '<button class="btn" data-action="openConfusion">错义分析（'+((state.mistakes||[]).length)+' 条）</button>'
 
     + '<div class="chart-card"><div class="chart-title">遗忘曲线</div>'
-    + '<div class="chart-sub">记忆会衰减，复习会把曲线重新抬起来。横轴 1×S 处大约还记得 90%。</div>'
-    + forgettingCurveSVG()
-    + '<div class="legend"><span><i style="background:#6ea8fe"></i>记忆可提取性 R</span>'
-    + '<span><i style="background:#fbbf24"></i>目标记忆率</span></div></div>'
+    + '<div class="chart-sub">'+(curveN
+        ? '蓝线是 FSRS 理论曲线，绿点是你 '+curveN+' 个词此刻的位置（点越大词越多）。'
+        : '蓝线是 FSRS 理论曲线；背过词后这里会叠加你的记忆点。')
+    + '</div>'
+    + forgettingCurveSVG(d.cards)
+    + '<div class="legend"><span><i style="background:#6ea8fe"></i>理论曲线 R</span>'
+    + '<span><i style="background:#fbbf24"></i>90% 参考线</span>'
+    + '<span><i style="background:#4ade80"></i>你的词</span></div></div>'
 
     + '<div class="chart-card"><div class="chart-title">当前记忆强度分布</div>'
     + '<div class="chart-sub">你学过的词此刻还记得多少。越靠右越牢。</div>'
@@ -1857,15 +1897,37 @@ function heatmapHTML(){
     total += n; if(n>0) active++;
     var lv = n===0?0:n<10?1:n<25?2:n<50?3:4;
     var future = cur.getTime()>today0;
-    cells.push('<div class="hm-cell lv'+lv+(future?' future':'')+'" title="'+key+'：'+n+' 词"></div>');
+    cells.push('<button type="button" class="hm-cell lv'+lv+(future?' future':'')
+      + '" data-action="heatCell" data-date="'+key+'" data-n="'+n+'" '
+      + 'title="'+key+'：'+n+' 词" aria-label="'+key+'，'+n+' 词"></button>');
     cur.setTime(cur.getTime()+DAY);
   }
   var weeks = Math.ceil(cells.length/7);
   var html = '<div class="hm-wrap" style="--weeks:'+weeks+'"><div class="hm-grid">'+cells.join('')+'</div></div>'
+    + '<div class="hm-detail" id="hmDetail">点任意格子看那天的学习记录</div>'
     + '<div class="hm-foot"><span>少</span>'
     + [0,1,2,3,4].map(function(i){ return '<i class="hm-cell lv'+i+'"></i>'; }).join('')
     + '<span>多</span><span style="margin-left:auto">'+active+' 天打卡 · 共 '+total+' 词</span></div>';
   return html;
+}
+// 点日历格子：手机上没有 hover，点一下把那天的日期和记录显示在格子下方
+function showHeatCell(btn){
+  var key = btn.dataset.date || '';
+  var n = parseInt(btn.dataset.n,10)||0;
+  var cells = document.querySelectorAll('.hm-grid .hm-cell');
+  for(var i=0;i<cells.length;i++) cells[i].classList.remove('sel');
+  btn.classList.add('sel');
+  var out = document.getElementById('hmDetail');
+  if(!out) return;
+  var d = new Date(key+'T00:00:00');
+  var wd = isNaN(d.getTime()) ? '' : '（周'+['日','一','二','三','四','五','六'][d.getDay()]+'）';
+  var l = state.dailyLog[key];
+  var txt = key + wd;
+  if(btn.classList.contains('future')) txt += ' · 还没到这一天';
+  else if(!l || !((l.neu||0)+(l.rev||0))) txt += ' · 这天没有学习记录';
+  else txt += ' · 新词 '+(l.neu||0)+' · 复习 '+(l.rev||0)
+           + ' · 共 '+n+' 词（认识 '+(l.good||0)+' · 模糊 '+(l.hard||0)+' · 不认识 '+(l.again||0)+'）';
+  out.textContent = txt;
 }
 function recentDaysHTML(){
   var rows = [], keys = Object.keys(state.dailyLog).sort().reverse().slice(0,14);
@@ -2079,6 +2141,7 @@ document.addEventListener('click', function(e){
   else if(a==='undoRating') undoRating();
   else if(a==='backWord') backWord();
   else if(a==='closePeek') closePeek();
+  else if(a==='heatCell') showHeatCell(b);
   else if(a==='openConfusion') openConfusion();
   else if(a==='closeConfusion') closeConfusion();
   else if(a==='clearMistakes') clearMistakes();
