@@ -1,4 +1,4 @@
-// 朗读降级：系统语音引擎不出声时，单词退到在线音频；失败提示只弹一次。
+// 朗读降级：系统语音引擎不出声时，单词退到在线音频；每次主动朗读失败都弹一次提示。
 // 直接点界面上的喇叭按钮，走真实交互路径。node test-tts.mjs
 import { spawn } from 'node:child_process';
 import { setTimeout as sleep } from 'node:timers/promises';
@@ -105,7 +105,7 @@ try {
   ck('音频请求带上当前单词', urls[0] && urls[0].indexOf(encodeURIComponent(word)) >= 0, { word, url: urls[0] });
   ck('默认用美音（type=2）', /type=2/.test(urls[0] || ''), urls[0]);
 
-  // 2. 揭晓后点例句喇叭：整句不走在线音频，只提示一次
+  // 2. 揭晓后点例句喇叭：整句也走降级链，失败时给一次自动消失的提示
   await ev(`(function(){
     var r=document.querySelectorAll('[data-action="quickRate"]');
     if(r.length) r[r.length-1].click();
@@ -132,11 +132,11 @@ try {
   const t1 = await ev(`window.__toasts.length`);
   ck('朗读不可用时有提示', t1 >= 1, await ev(`window.__toasts.slice()`));
 
-  // 3. 再点一次，不重复弹提示
+  // 3. 再点一次仍然弹提示，每次都是出现后自动消失的小弹窗
   await ev(`(function(){ var b=document.querySelector('.ex-speak[data-text]'); if(b) b.click(); })()`);
   await sleep(1600);
   const t2 = await ev(`window.__toasts.length`);
-  ck('提示只弹一次', t2 === t1, { t1, t2 });
+  ck('再点一次仍然提示', t2 === t1 + 1, { t1, t2 });
 
   console.log('\n总结：通过 ' + pass + '，失败 ' + fail);
   if (fail) process.exitCode = 1;

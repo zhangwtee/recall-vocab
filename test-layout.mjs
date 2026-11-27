@@ -80,6 +80,13 @@ try {
       await toFeedback();
       await sleep(300);
     }
+    // 「回看上一词」只在有历史时出现，先过一词再回到反馈页
+    if (!(await ev(`!!document.querySelector('.fbops .btn-back')`))) {
+      await ev(`(function(){var b=document.querySelector('[data-action="confirm"]');if(b)b.click()})()`);
+      await sleep(300);
+      await toFeedback();
+      await sleep(300);
+    }
 
     const m = await ev(`(function(){
       var k=document.querySelector('.compare .k');
@@ -90,7 +97,7 @@ try {
       if(!k||!vd||!dock||!f) return null;
       var kr=k.getBoundingClientRect(), vr=vd.getBoundingClientRect();
       var dr=dock.getBoundingClientRect(), fr=f.getBoundingClientRect();
-      var bm=document.querySelector('.fbops .btn-main'), ba=document.querySelector('.fbops .btn-alt');
+      var bm=document.querySelector('.fbops .btn-main'), ba=document.querySelector('.fbops .btn-back');
       var mr=bm?bm.getBoundingClientRect():null, ar=ba?ba.getBoundingClientRect():null;
       var cmp=document.querySelector('.compare');
       return {
@@ -100,8 +107,9 @@ try {
         dockInMain: !!dock.closest('main'),
         verdictTop: Math.round(vr.top), verdictText: vd.innerText,
         verdictGap: cmp ? Math.round(cmp.getBoundingClientRect().top - vr.bottom) : null,
-        btnGap: (mr && ar) ? Math.round(ar.left - mr.right) : null,
+        btnGap: (mr && ar) ? Math.round(mr.left - ar.right) : null,
         btnHDiff: (mr && ar) ? Math.round(Math.abs(mr.height - ar.height)) : 0,
+        btnWidthDiff: (mr && ar) ? Math.round(Math.abs(mr.width - ar.width)) : 0,
         btnRadius: bm ? getComputedStyle(bm).borderTopLeftRadius : '',
         dockTop: Math.round(dr.top), dockBottom: Math.round(dr.bottom),
         footerTop: Math.round(fr.top), footerBottom: Math.round(fr.bottom),
@@ -119,6 +127,7 @@ try {
     ck(w + '×' + h + ' 判定条与对比框不粘连', m.verdictGap !== null && m.verdictGap >= 6, m);
     ck(w + '×' + h + ' 两个操作按钮留出间隙', m.btnGap !== null && m.btnGap >= 8, m);
     ck(w + '×' + h + ' 操作按钮同高且圆角在', m.btnHDiff <= 2 && m.btnRadius !== '0px', m);
+    ck(w + '×' + h + ' 回看与下一词各占一半', m.btnWidthDiff <= 2, m);
     ck(w + '×' + h + ' 操作栏在统计上方', m.dockBottom <= m.footerTop + 1, m);
     ck(w + '×' + h + ' 统计在屏幕内', m.footerBottom <= m.viewH + 1, m);
     ck(w + '×' + h + ' 无横向滚动', !m.hScroll, m);

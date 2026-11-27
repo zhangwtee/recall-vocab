@@ -182,9 +182,13 @@ main{flex:1;min-height:0;display:flex;flex-direction:column;padding:12px 16px;
 .type-input::placeholder{color:var(--dim2)}
 .submit{width:100%;padding:14px;border:0;border-radius:10px;background:var(--blue);color:var(--on-blue);
   font-size:16px;font-weight:600;cursor:pointer;margin-top:12px}
-.giveup{width:100%;padding:10px;border:0;background:transparent;color:var(--dim2);
-  font-size:12px;cursor:pointer;margin-top:12px}
-.giveup:hover{color:var(--dim)}
+.giveup{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:9px;
+  background:var(--card2);color:var(--dim);font-size:12px;cursor:pointer;margin-top:12px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.giveup:hover{color:var(--fg);border-color:var(--blue)}
+/* 回看 / 撤销：两个小按钮并排，各自带框，不散着摆 */
+.link-row{display:flex;gap:8px;margin-top:12px;width:100%}
+.link-row .giveup{flex:1 1 0;width:auto;min-width:0;margin-top:0}
 /* 判定条：单独一条带底色，不跟上面的分隔线、下面的对比框糊在一起 */
 .verdict{width:100%;text-align:center;font-size:calc(var(--verdict-size)*var(--fs));font-weight:500;line-height:1.45;
   padding:8px 12px;border-radius:8px;margin:0 0 12px;background:var(--card2);color:var(--dim)}
@@ -198,23 +202,34 @@ main{flex:1;min-height:0;display:flex;flex-direction:column;padding:12px 16px;
 .compare .line .v{color:var(--fg);word-break:break-all}
 /* 底部操作栏：间距用 margin 给，不依赖 flex gap（老 WebView 上 gap 不生效会贴在一起） */
 .fbops{width:100%;display:flex;align-items:stretch}
+.fbops.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.fbops.two .btn-main,.fbops.two .btn-back{margin-right:0;width:100%}
 #dock{flex:none;width:100%;max-width:680px;margin:0 auto;padding:6px 16px 8px;display:none}
 #dock.show{display:block}
 .fbops .btn-main,.fbops .btn-alt,.fbops .btn-undo{-webkit-appearance:none;appearance:none;
   min-height:50px;border-radius:12px;cursor:pointer;margin:0}
-.fbops .btn-main{flex:1 1 auto;min-width:0;margin-right:12px;padding:10px 12px;border:0;
+.fbops .btn-main{flex:1 1 0;min-width:0;margin-right:12px;padding:10px 12px;border:0;
   background:var(--blue);color:var(--on-blue);font-size:15px;font-weight:600;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fbops .btn-back{flex:1 1 0;min-width:0;margin-right:12px;padding:10px 8px;border:1px solid var(--line);
+  background:transparent;color:var(--dim);font-size:14px;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .fbops .btn-alt{flex:0 0 auto;padding:10px 18px;border:1px solid var(--line);
   background:transparent;color:var(--dim);font-size:13px;white-space:nowrap}
 .fbops .btn-undo{flex:0 0 auto;margin-right:12px;padding:10px 11px;border:1px solid var(--line);
   background:transparent;color:var(--dim2);font-size:12px;white-space:nowrap}
-.fbops .btn-main:last-child,.fbops .btn-undo:last-child{margin-right:0}
+.fbops .btn-main:last-child,.fbops .btn-back:last-child,.fbops .btn-alt:last-child,
+.fbops .btn-undo:last-child{margin-right:0}
 @media (max-width:360px){
+  .fbops.two{gap:9px}
+  .fbops .btn-back{padding:0 6px;font-size:13px;margin-right:9px}
   .fbops .btn-alt{padding:0 11px;font-size:12px}
   .fbops .btn-undo{padding:0 9px;margin-right:9px}
   .fbops .btn-main{margin-right:9px}
 }
+/* 反馈卡里的文字按钮：并排带框，底部留给「回看 / 下一词」对半分 */
+.fb-links{display:flex;gap:8px;margin-top:12px;width:100%}
+.fb-links .giveup{flex:1 1 0;width:auto;min-width:0;margin-top:0;padding:9px 6px}
 .done{text-align:center;color:var(--dim);line-height:2;margin:auto}
 .done .big{font-size:44px;margin-bottom:8px}
 .done .title{font-size:20px;color:var(--fg);font-weight:500;margin-bottom:16px}
@@ -367,7 +382,7 @@ textarea{width:100%;min-height:130px;background:var(--card);color:var(--fg);bord
 #toast{position:fixed;left:50%;bottom:40px;transform:translateX(-50%) translateY(20px);
   background:var(--card2);border:1px solid var(--line);color:var(--fg);padding:11px 20px;
   border-radius:10px;font-size:13px;z-index:50;opacity:0;transition:.25s;pointer-events:none;
-  white-space:nowrap;max-width:90vw;overflow:hidden;text-overflow:ellipsis}
+  white-space:normal;text-align:center;line-height:1.5;max-width:min(90vw,360px)}
 #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 #boot{position:fixed;inset:0;z-index:60;background:var(--bg);display:flex;align-items:center;
   justify-content:center;transition:opacity .3s}
@@ -870,7 +885,6 @@ function closePeek(){ peekCard = null; render(); }
 // 朗读：优先系统语音引擎；引擎缺失或没装英文语音时，退到在线词典音频。
 // 两者都没有才提示一次，避免每次点击都弹同样的报错。
 var TTS_OK = ('speechSynthesis' in window);
-var speechWarned = false;
 var speechStarted = false;                  // 最近一次朗读有没有真的出声
 var autoSpokenKey = null, speechPrimed = false;
 // 在线词典音频除了单词也能读短英文句；太长的整句不送，免得 URL 过长
@@ -879,9 +893,8 @@ function speakableText(t){
   return s.length>0 && s.length<=160 && !/[\u0000-\u001F\u4E00-\u9FFF\u3040-\u30FF]/.test(s);
 }
 function warnNoSpeech(why){
-  if(speechWarned) return;
-  speechWarned = true;
-  toast(why || '这个浏览器不能朗读 · 换 Chrome 或 Safari 打开就有声音');
+  // 用户主动点朗读失败时每次都弹一下，几秒后自动消失；自动朗读走 quiet，不打扰。
+  toast(why || '朗读不可用 · 换个浏览器试试');
 }
 function speakOnline(text, quiet){
   if(!speakableText(text)) return false;
@@ -891,7 +904,7 @@ function speakOnline(text, quiet){
       + '&audio=' + encodeURIComponent(String(text).trim()));
     var p = a.play();
     if(p && p.then) p.then(function(){ speechStarted = true; },
-      function(){ if(!quiet) warnNoSpeech('朗读不可用：本机没有语音引擎，在线音频也取不到 · 换 Chrome 或 Safari 试试'); });
+      function(){ if(!quiet) warnNoSpeech('朗读失败 · 换个浏览器试试'); });
     return true;
   }catch(e){ return false; }
 }
@@ -919,7 +932,7 @@ function speak(text, quiet, opts){
         if(speechStarted) return;
         if(speechSynthesis.speaking || speechSynthesis.pending) return;
         if(source==='system'){
-          if(!quiet) warnNoSpeech('本机没有英文语音 · 去设置里把发音音源改成「在线」');
+          if(!quiet) warnNoSpeech('没有英文语音 · 设置里改用「在线」音源');
           return;
         }
         if(!speakOnline(text, quiet) && !quiet) warnNoSpeech();
@@ -928,7 +941,7 @@ function speak(text, quiet, opts){
     }catch(e){}
   }
   if(source==='system'){
-    if(!quiet) warnNoSpeech('本机没有语音引擎 · 去设置里把发音音源改成「在线」');
+    if(!quiet) warnNoSpeech('没有语音引擎 · 设置里改用「在线」音源');
     return;
   }
   if(!speakOnline(text, quiet) && !quiet) warnNoSpeech();
@@ -1241,8 +1254,11 @@ function stage(){
           + (inputMode==='en'?'输入英文拼写':'输入汉语意思')+'" autocomplete="off" '
           + 'autocapitalize="off" spellcheck="false">'
           + '<div id="actionArea"></div>'
-          + (session.history.length ? '<button class="giveup" data-action="backWord">← 回看上一词</button>' : '')
-          + (undoSnap ? '<button class="giveup" data-action="undoRating">↶ 撤销上一词的评分</button>' : '')
+          + ((session.history.length || undoSnap)
+             ? '<div class="link-row">'
+               + (session.history.length ? '<button class="giveup" data-action="backWord">← 回看上一词</button>' : '')
+               + (undoSnap ? '<button class="giveup" data-action="undoRating">↶ 撤销评分</button>' : '')
+               + '</div>' : '')
           + '</div>';
     el.innerHTML = html + '</div>';
     el.scrollTop = 0;
@@ -1270,8 +1286,10 @@ function stage(){
         + (feedback.matched && v!=='right' && v!=='chosen'
            ? '<div class="line"><span class="k">'+(v==='near'?'接近项':'最接近')+'</span><span class="v">'+esc(feedback.matched)+'</span></div>' : '')
         + '</div>'
+        + '<div class="fb-links">'
         + '<button class="giveup" data-action="startDrill">再拼一次这个词</button>'
-        + (session.history.length ? '<button class="giveup" data-action="backWord">← 回看上一词</button>' : '')
+        + ((v==='right' || v==='chosen') ? '' : '<button class="giveup" data-action="forceGood">算认识</button>')
+        + '</div>'
         + renderExamples(c.w)
         + renderRef(c)
         + (c.tip ? '<div class="note-box"><span class="nt">书中助记</span>'+esc(c.tip)+'</div>' : '')
@@ -1281,9 +1299,9 @@ function stage(){
   el.scrollTop = 0;
   requestAnimationFrame(function(){ el.scrollTop = 0; });
   // 操作栏单独占一条，不盖住卡片内容；长卡片滚动时也始终在屏幕内
-  dock.innerHTML = '<div class="fbops">'
-        + '<button class="btn-main" data-action="confirm">下一词 <kbd>↵</kbd></button>'
-        + (v==='right' || v==='chosen' ? '' : '<button class="btn-alt" data-action="forceGood">算认识</button>')
+  dock.innerHTML = '<div class="fbops'+(session.history.length?' two':'')+'">'
+        + (session.history.length ? '<button class="btn-back" data-action="backWord">← 回看上一词</button>' : '')
+        + '<button class="btn-main" data-action="confirm">下一词</button>'
         + '</div>';
   dock.classList.add('show');
 }
@@ -1324,7 +1342,7 @@ function updateActionArea(){
   if(!area) return;
   var val = inp ? inp.value.trim() : '';
   if(val){
-    area.innerHTML = '<button class="submit" data-action="submitInput">提交判分 <kbd>↵</kbd></button>';
+    area.innerHTML = '<button class="submit" data-action="submitInput">提交判分</button>';
   }else{
     area.innerHTML = '<div class="ratings">'
       + '<button class="rate" data-action="quickRate" data-g="1"><b>不认识</b><small>'+preview(1)+'</small></button>'
@@ -1333,18 +1351,27 @@ function updateActionArea(){
       + '</div>';
   }
 }
+function pendingReviews(){
+  var n = current && current.state !== 'new' ? 1 : 0;
+  for(var i=0;i<session.queue.length;i++){
+    var c = session.queue[i];
+    if(c && c.state !== 'new') n++;
+  }
+  return n;
+}
 function header(){
   document.getElementById('bookLabel').textContent = bookName();
   var log = todayLog();
   var neuDone = log.neu||0;
   var neuPlan = Math.max(log.planNew||0, neuDone);
   var revDone = log.rev||0;
+  var revLeft = pendingReviews();
   document.getElementById('pill').textContent = '新词 '+neuDone+' / '+neuPlan;
   document.getElementById('pill').title = '今日新词 '+neuDone+' / '+neuPlan+' 个；另有复习 '
-    +revDone+' 个（计划 '+(log.planRev||0)+' 个）。点开可调整每日新词。';
+    +revDone+' 个（计划 '+(log.planRev||0)+' 个，还需 '+revLeft+' 个）。点开可调整每日新词。';
   document.getElementById('barFill').style.width = (neuPlan? Math.min(100,neuDone/neuPlan*100):0)+'%';
   document.getElementById('statNew').textContent = '新词 '+log.neu;
-  document.getElementById('statReview').textContent = '复习 '+log.rev;
+  document.getElementById('statReview').textContent = '复习 '+revDone+' · 还需 '+revLeft;
   var judged = log.again+log.hard+log.good;
   document.getElementById('statAcc').textContent = '认识率 '+(judged?Math.round((log.good/judged)*100)+'%':'—');
 }
